@@ -9,42 +9,35 @@ library(fs)
 source("common_functions.R")
 
 
+restore_input_files()
 
 # process command line arguments
 args <- commandArgs(TRUE)
 if (length(args) == 0L) {
-  KEEP_CLASS_FREQUENCY <- TRUE
-  SEED <- 0
+  keep_class_frequency <- TRUE
+  seed <- 0
 } else {
-  KEEP_CLASS_FREQUENCY <- as.logical(args[1])
-  SEED <- as.numeric(args[2])
+  keep_class_frequency <- as.logical(args[1])
+  seed <- as.numeric(args[2])
 }
-
-# restore unused input files
-restore_input_file(MUT_FILE)
-restore_input_file(CNV_FILE)
-
 
 # scramble labels
-scramble_labels <- function(keep_class_frequency = TRUE) {
-  labels <- read_csv(LABEL_FILE)
+labels <- read_csv(LABEL_FILE_ORIGINAL)
 
-  if (keep_class_frequency)
-    label_1_frq <- mean(labels$response)
-  else
-    label_1_frq <- 0.5
-
-  set.seed(SEED)
-  scrambled_response <- sample(
-    0:1,
-    nrow(labels),
-    replace = TRUE,
-    prob = c(1 - label_1_frq, label_1_frq)
-  )
-
-  labels %>%
-    mutate(response = scrambled_response) %>%
-    write_csv(path_ext_remove(LABEL_FILE))
+if (keep_class_frequency) {
+  label_1_frq <- mean(labels$response)
+} else {
+  label_1_frq <- 0.5
 }
 
-scramble_labels(KEEP_CLASS_FREQUENCY)
+set.seed(seed)
+scrambled_response <- sample(
+  0:1,
+  nrow(labels),
+  replace = TRUE,
+  prob = c(1 - label_1_frq, label_1_frq)
+)
+
+labels %>%
+  mutate(response = scrambled_response) %>%
+  write_csv(LABEL_FILE)

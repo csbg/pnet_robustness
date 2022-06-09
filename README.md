@@ -2,46 +2,18 @@
 
 ## Prepare PNET
 
-Clone the git repository and change `pipeline/one_split.py` and `train/run_me.py` to allow selection of random seeds (use patch in `patch/`).
+Clone the git repository and change `pipeline/one_split.py` and `train/run_me.py` to allow selection of random seeds.
 
 ```bash
 gh repo clone marakeby/pnet_prostate_paper
-git checkout 2b16264
-git apply pnet_patch.diff
+cd pnet_prostate_paper
+git checkout -b pnet-robustness 2b16264
+git apply ../pnet_data/patch_seeds.diff
+git commit -a -m "changes code for PNET robustness tests"
+conda env create --name pnet_env --file=environment.yml
 ```
 
-Download data files from [https://drive.google.com/uc?id=17nssbdUylkyQY1ebtxsIw5UzTAd0zxWb&export=download] and unzip the folder `_database`. (Note: Only files described [below](#pnet-input-data) are required.)
-
-
-
-## Run an experiment
-
-Execute all of the following commands in the root folder (i.e., `pnet_prostate_cancer`).
-
-Set up the environment via
-
-``` bash
-eval /home/wolfgang/Programs/miniconda3/bin/conda "shell.fish" "hook" $argv | source
-conda activate pnet_env
-set -x PYTHONPATH $PWD
-```
-
-Run the respective experiment via one of the `seed_tests/run_*.sh` scripts, e.g.,
-
-``` bash
-seed_tests/run_default.sh
-```
-
-or, if only the default seed is required, via
-
-```bash
-python seed_tests/main.py
-```
-
-
-## PNET input data
-
-PNET employs the following data files, all of which are stored in `_database/`:
+Download [data files](https://drive.google.com/uc?id=17nssbdUylkyQY1ebtxsIw5UzTAd0zxWb&export=download) and move the decompressed folder `_database` into `pnet_prostate_paper`. PNET requires the following files:
 
 - `genes/`: only the genes present in both of the following two files will be analyzed:
             (a) `tcga_prostate_expressed_genes_and_cancer_genes.csv`
@@ -90,51 +62,108 @@ PNET employs the following data files, all of which are stored in `_database/`:
     - `validation_set.csv`: samples in the validation set
 
 
-The three CSV files in `prostate/processed/` have been renamed to `*.csv.original` with read-only permission.
+
+## Run experiments
+
+Set up the environment:
+
+``` bash
+# first line only required if conda is not activated in .bashrc
+source /home/wolfgang/Programs/miniconda3/etc/profile.d/conda.sh
+conda activate pnet_env
+export PYTHONPATH=$PWD/pnet-prostate-cancer:$PYTHONPATH
+```
+
+Generally, each experiment comprises two steps:
+1. Prepare PNET input data via `prepare_*.R`.
+2. Run PNET via `run_pnet.sh [experiment name]` (the argument may be empty, in which case it has the value `default`).
+
+Within each experiment, results from each run are saved in a subfolder indicating the two random seeds used (e.g., `0_0`).
 
 
+### Default settings
 
-## Experiments
+Run PNET with default settings.
 
-Prior to each experiment, `run_*.sh` executes the respective `prepare_*.R` script to prepare PNET input data.
+```bash
+Rscript prepare_default.R
+run_pnet.sh default
+```
 
-Input data for this R script is saved in subfolders of `data/`:
 
-- `default`:
-  run PNET with default settings (`run_default.sh`)
-- `correlated`:
-  input data is modified so that presence of mutation and copy number
-  amplification is perfectly correlated with class label 1
-  (`run_correlated.sh`); copy number deletion is always 0
-- `dropout_high`:
-  set dropout to 0.95 by modifying lines 21 and 37 in
-  `train/params/P1000/pnet/onsplit_average_reg_10_tanh_large_testing.py`
-  (run via `run_default.R`; do not forget to revert these changes!)
-- `dropout_none`:
-  eliminate dropout layers (i.e., comment out lines 167, 169 and 236,
-  and 237 in `model/builders/builders_utils.py`)
-  (run via `run_default.R`; do not forget to revert these changes!)
-- `scrambled_labels`: scramble training/test labels
-  while retaining class frequency (`run_scrambled_labels.R`)
-- `scrambled_labels_balanced`:
-  as above, but equal class frequencies (`run_scrambled_labels_balanced.R`)
-- `scrambled_features_0.5_seed_0`
-- `scrambled_features_0.05_seed_0`
-- `scrambled_features_0.001_seed_0`
-- `scrambled_features_0.5_seed_1`
-- `scrambled_features_0.05_seed_1`:
-  scramble input features (`run_scrambled_features_*_seed_*.R`);
-  values in the mutation (CNA) matrix are replaced by 0 and 1 (2);
-  the nonzero element is chosen with the given probability (50%, 5%, or 0.1%);
-  a random seed of 0 or 1 is used from scrambling
+### Correlated predictors and classes
+
+Input data is modified so that presence of mutation and copy number amplification is perfectly correlated with class label 1 (copy number deletion is always 0).
+
+```bash
+Rscript prepare_correlated.R
+run_pnet.sh correlated
+```
+
+
+### Dropout
+
+(1) Set dropout to 0.95 by modifying lines 21 and 37 in `train/params/P1000/pnet/onsplit_average_reg_10_tanh_large_testing.py` (revert changes afterwards).
+
+```bash
+git apply --directory=pnet_prostate_paper pnet_data/patch_high_dropout.diff
+run_pnet.sh dropout_high
+git apply -R --directory=pnet_prostate_paper pnet_data/patch_high_dropout.diff
+```
+
+(2) Eliminate dropout layers altogether by removing lines 167, 169, 236, and 237 in `model/builders/builders_utils.py` (revert changes afterwards).
+
+```bash
+git apply --directory=pnet_prostate_paper pnet_data/patch_no_dropout.diff
+run_pnet.sh dropout_none
+git apply -R --directory=pnet_prostate_paper pnet_data/patch_no_dropout.diff
+```
+
+
+### Scrambled labels
+
+(1) Scramble training/test labels while retaining class frequency.
+
+```bash
+Rscript prepare_scrambled_labels.R TRUE 0
+run_pnet.sh scrambled_labels
+```
+
+(2) Use uniform class frequencies.
+
+```bash
+Rscript prepare_scrambled_labels.R FALSE 0
+run_pnet.sh scrambled_labels_balanced
+```
+
+
+### Scrambled features
+
+Scramble input features. Values in the mutation (CNA) matrix are replaced by 0 and 1 (2); the nonzero element is chosen with a given probability (50%, 5%, or 0.1%). A random seed of 0 or 1 is used for scrambling.
+
+```bash
+Rscript prepare_scrambled_features.R 0.5 0
+run_pnet.sh scrambled_features_0.5_seed_0
+
+Rscript prepare_scrambled_features.R 0.05 0
+run_pnet.sh scrambled_features_0.05_seed_0
+
+Rscript prepare_scrambled_features.R 0.001 0
+run_pnet.sh scrambled_features_0.001_seed_0
+
+Rscript prepare_scrambled_features.R 0.5 1
+run_pnet.sh scrambled_features_0.5_seed_1
+
+Rscript prepare_scrambled_features.R 0.05 1
+run_pnet.sh scrambled_features_0.05_seed_1
+```
 
 
 
 ## PNET output data
 
-These files are directly copied from the PNET output folders (`analysis/extracted` and `_logs/p1000/pnet`).
+These files are directly copied from the PNET output folders (`analysis/extracted` and `_logs/p1000/pnet`):
 
-- Results from each run are saved in a subfolder indicating the two random seeds used (e.g., `0_0`).
 - `node_importance_graph_adjusted.csv` contains node importance scores; important columns:
   - (first, unnamed): node name
   - coef: node importance scores
@@ -147,16 +176,9 @@ These files are directly copied from the PNET output folders (`analysis/extracte
   - y: true class (encoded as integer 1 or 0)
 
 
-You may remove unnecessary files via
-
-```bash
-# cd data/[experiment]
-rm -r */*/*.png */*/Logistic* */*/pnet*history.csv */*/pnet*validation
-```
-
 
 ## Sync with GFS
 
 ```bash
-rsync -azvhP --delete /home/wolfgang/Plus/Experiments/pnet_prostate_paper/seed_tests/data/ /mnt/agfortelny/people/wskala/pnet_prostate_paper/seed_tests/data
+rsync -azvhP --delete /home/wolfgang/Plus/Projects/pnet_robustness/data/ /mnt/agfortelny/people/wskala/pnet_robustness/data
 ```

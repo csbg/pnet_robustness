@@ -1,0 +1,45 @@
+diff --git a/pipeline/one_split.py b/pipeline/one_split.py
+index 4e3deab..a311c19 100644
+--- a/pipeline/one_split.py
++++ b/pipeline/one_split.py
+@@ -116,7 +116,7 @@ class OneSplitPipeline:
+             x_test, y_test, info_test = get_balanced(x_test, y_test, info_test)
+         return x_train, x_test, y_train, y_test, info_train, info_test, columns
+ 
+-    def run(self):
++    def run(self, seed=20080808):
+         test_scores = []
+         model_names = []
+         model_list = []
+@@ -153,7 +153,7 @@ class OneSplitPipeline:
+             for m in self.model_params:
+                 # get model
+                 model_params_ = deepcopy(m)
+-                set_random_seeds(random_seed=20080808)
++                set_random_seeds(random_seed=seed)
+                 model = get_model(model_params_)
+                 logging.info('fitting')
+                 logging.info(model_params_)
+diff --git a/train/run_me.py b/train/run_me.py
+index 488a250..ead020e 100644
+--- a/train/run_me.py
++++ b/train/run_me.py
+@@ -19,7 +19,8 @@ from pipeline.LeaveOneOut_pipeline import LeaveOneOutPipeline
+ 
+ os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+ 
+-random_seed = 234
++random_seed = int(sys.argv[1])
++pipeline_seed = int(sys.argv[2])
+ random.seed(random_seed)
+ np.random.seed(random_seed)
+ tf.random.set_random_seed(random_seed)
+@@ -122,7 +123,7 @@ for params_file in params_file_list:
+                                        model_params=params.models, pre_params=params.pre,
+                                        pipeline_params=params.pipeline, exp_name=log_dir)
+     start = timeit.default_timer()
+-    pipeline.run()
++    pipeline.run(pipeline_seed)
+     stop = timeit.default_timer()
+     mins, secs = elapsed_time(start, stop)
+     logging.info('Elapsed Time: {}m {}s'.format(mins, secs))

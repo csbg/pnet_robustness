@@ -8,37 +8,33 @@ library(fs)
 source("common_functions.R")
 
 
-
-# Parameters --------------------------------------------------------------
+restore_input_files()
 
 # process command line arguments
 # if none is supplied or interactive mode, keep the class frequency
 args <- commandArgs(TRUE)
 if (length(args) == 0L) {
-  PROB_MUT_CNV <- 0.5
-  SEED <- 0
+  prob_mut_cnv <- 0.5
+  seed <- 0
 } else {
-  PROB_MUT_CNV <- as.numeric(args[1])
-  SEED <- as.numeric(args[2])
+  prob_mut_cnv <- as.numeric(args[1])
+  seed <- as.numeric(args[2])
 }
 
 
-
-# Change ------------------------------------------------------------------
-
-set.seed(SEED)
+set.seed(seed)
 
 # make 1000 samples with equally distributed labels
-labels <- read_csv(LABEL_FILE)
+labels <- read_csv(LABEL_FILE_ORIGINAL)
 
 labels %>%
   mutate(response = rep_len(0:1, nrow(labels))) %>%
-  write_csv(path_ext_remove(LABEL_FILE))
+  write_csv(LABEL_FILE)
 
 
 # assign random mutations (original gene names)
 mut_colnames <-
-  read_csv(MUT_FILE) %>%
+  read_csv(MUT_FILE_ORIGINAL) %>%
   colnames()
 
 bind_cols(
@@ -50,22 +46,22 @@ bind_cols(
         c(0L, 1L),
         nrow(labels),
         replace = TRUE,
-        prob = c(1 - PROB_MUT_CNV, PROB_MUT_CNV)
+        prob = c(1 - prob_mut_cnv, prob_mut_cnv)
       )
     )
   )
 ) %>%
-  write_csv(path_ext_remove(MUT_FILE))
+  write_csv(MUT_FILE)
 
 
 # assign random CNVs (original gene names)
 cnv_colnames <-
-  read_csv(CNV_FILE) %>%
+  read_csv(CNV_FILE_ORIGINAL) %>%
   colnames()
 
 c("", cnv_colnames[-1]) %>%
   str_c(collapse = ",") %>%
-  write_lines(path_ext_remove(CNV_FILE))
+  write_lines(CNV_FILE)
 
 bind_cols(
   select(labels, id),
@@ -76,9 +72,9 @@ bind_cols(
         c(0L, 2L),
         nrow(labels),
         replace = TRUE,
-        prob = c(1 - PROB_MUT_CNV, PROB_MUT_CNV)
+        prob = c(1 - prob_mut_cnv, prob_mut_cnv)
       )
     )
   )
 ) %>%
-  write_csv(path_ext_remove(CNV_FILE), append = TRUE)
+  write_csv(CNV_FILE, append = TRUE)

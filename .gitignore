@@ -1,6 +1,7 @@
 data
 doc
 literature
-patch
 plots
+pnet_prostate_paper
 .Rproj.user
+common_functions.R

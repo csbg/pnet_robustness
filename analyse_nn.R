@@ -1,5 +1,4 @@
 library(yardstick)
-library(ComplexHeatmap)
 library(RColorBrewer)
 library(tidyverse)
 library(fs)
@@ -62,6 +61,13 @@ loaded_seeds <- c(
   -1:9
 )
 
+reactome_names <-
+  read_tsv(
+    "pnet_prostate_paper/_database/pathways/Reactome/ReactomePathways.txt",
+    col_names = c("reactome_id", "node", "species")) %>%
+  filter(species == "Homo sapiens") %>%
+  select(!species)
+
 node_importance <-
   dir_ls(
     glob = str_glue("data/*/*/node_importance_graph_adjusted.csv"),
@@ -72,13 +78,20 @@ node_importance <-
     .id = "file"
   ) %>%
   rename(node = X1) %>%
+  left_join(reactome_names, by = "node") %>%
+  mutate(reactome_id = if_else(layer == 1, node, reactome_id)) %>%
   extract(
     file,
     into = c("experiment", "seed"),
     regex = str_glue("data/(.+)/(.+)/"),
     convert = TRUE
   ) %>%
-  filter(experiment %in% loaded_experiments, seed %in% loaded_seeds)
+  filter(experiment %in% loaded_experiments, seed %in% loaded_seeds) %>%
+  group_by(experiment, seed, layer) %>%
+  mutate(
+    modified = coef_graph > mean(coef_graph) + 5 * sd(coef_graph),
+  ) %>%
+  ungroup()
 
 
 predictions <-
@@ -123,11 +136,11 @@ plot_node_importance <- function(layer,
   top_nodes <-
     node_importance %>%
     filter(layer == {{layer}}, experiment == experiments[1]) %>%
-    group_by(node) %>%
-    summarise(coef = median(coef)) %>%
-    slice_max(coef, n = top_nodes, with_ties = FALSE) %>%
-    arrange(coef) %>%
-    pull(node)
+    group_by(reactome_id) %>%
+    summarise(coef_combined = median(coef_combined)) %>%
+    slice_max(coef_combined, n = top_nodes, with_ties = FALSE) %>%
+    arrange(coef_combined) %>%
+    pull(reactome_id)
 
   if (show_raw_data) {
     raw_data <- geom_point(
@@ -143,7 +156,11 @@ plot_node_importance <- function(layer,
     layer_original_seed <- geom_point(
       data =
         node_importance %>%
-        filter(seed == "234_20080808", layer == {{layer}}, node %in% top_nodes),
+        filter(
+          seed == "234_20080808",
+          layer == {{layer}},
+          reactome_id %in% top_nodes
+        ),
       aes(fill = experiment),
       shape = 21,
       position = position_dodge(width = .75),
@@ -154,9 +171,9 @@ plot_node_importance <- function(layer,
   }
 
   node_importance %>%
-    filter(layer == {{layer}}, node %in% top_nodes) %>%
-    mutate(node = factor(node, levels = top_nodes)) %>%
-    ggplot(aes(node, coef)) +
+    filter(layer == {{layer}}, reactome_id %in% top_nodes) %>%
+    mutate(reactome_id = factor(reactome_id, levels = top_nodes)) %>%
+    ggplot(aes(reactome_id, coef_combined)) +
     geom_boxplot(
       aes(fill = experiment),
       outlier.shape = 21,
@@ -183,15 +200,16 @@ plot_node_importance_all_layers <- function(experiments = loaded_experiments,
   top_nodes_per_layer <-
     node_importance %>%
     filter(experiment == experiments[1]) %>%
-    group_by(layer, node) %>%
-    summarise(coef = median(coef)) %>%
-    slice_max(coef, n = top_nodes, with_ties = FALSE) %>%
-    arrange(layer, desc(coef))
+    group_by(layer, reactome_id) %>%
+    summarise(coef_combined = median(coef_combined)) %>%
+    slice_max(coef_combined, n = top_nodes, with_ties = FALSE) %>%
+    arrange(layer, desc(coef_combined))
 
   node_importance %>%
-    semi_join(top_nodes_per_layer, by = c("layer", "node")) %>%
-    mutate(node = factor(node, levels = top_nodes_per_layer$node)) %>%
-    ggplot(aes(node, coef)) +
+    semi_join(top_nodes_per_layer, by = c("layer", "reactome_id")) %>%
+    mutate(reactome_id = factor(reactome_id,
+                                levels = top_nodes_per_layer$reactome_id)) %>%
+    ggplot(aes(reactome_id, coef_combined)) +
     geom_boxplot(
       aes(fill = experiment),
       outlier.shape = 21,
@@ -216,10 +234,10 @@ EXP_DROPOUT <- c(
 )
 
 plot_node_importance_all_layers(EXP_DROPOUT)
-ggsave_default("node_importance_dropout", width = 600, height = 200)
+ggsave_default("node_importance_dropout", width = 600, height = 100)
 
 plot_node_importance(6, experiments = EXP_DROPOUT)
-ggsave_default("node_importance_6_dropout", width = 250, height = 200)
+ggsave_default("node_importance_6_dropout", width = 250)
 
 plot_node_importance(5, 20, experiments = EXP_DROPOUT)
 ggsave_default("node_importance_5_dropout", width = 200)
@@ -236,10 +254,10 @@ EXP_CORRELATED <- c(
 )
 
 plot_node_importance_all_layers(EXP_CORRELATED)
-ggsave_default("node_importance_correlated", width = 500, height = 200)
+ggsave_default("node_importance_correlated", width = 500, height = 100)
 
 plot_node_importance(6, experiments = EXP_CORRELATED)
-ggsave_default("node_importance_6_correlated", width = 250, height = 200)
+ggsave_default("node_importance_6_correlated", width = 250)
 
 plot_node_importance(5, 20, experiments = EXP_CORRELATED)
 ggsave_default("node_importance_5_correlated", width = 200)
@@ -253,22 +271,19 @@ ggsave_default("node_importance_1_correlated", width = 200)
 EXP_LABELS <- c(
   "default",
   "scrambled_labels",
-  "scrambled_labels_balanced",
-  "scrambled_labels_seeds"
+  "scrambled_labels_balanced"
 )
 
 plot_node_importance_all_layers(EXP_LABELS[c(1, 2)])
-ggsave_default("node_importance_scrambled_labels", width = 500, height = 200)
+ggsave_default("node_importance_scrambled_labels", width = 500, height = 100)
 
 plot_node_importance_all_layers(EXP_LABELS[c(1, 3)])
-ggsave_default("node_importance_scrambled_labels_balanced", width = 500, height = 200)
-
-plot_node_importance_all_layers(EXP_LABELS[c(1, 4)])
-ggsave_default("node_importance_scrambled_labels_seeds", width = 500, height = 200)
+ggsave_default("node_importance_scrambled_labels_balanced",
+               width = 500, height = 100)
 
 
 plot_node_importance(6, experiments = EXP_LABELS)
-ggsave_default("node_importance_6_labels", width = 250, height = 300)
+ggsave_default("node_importance_6_labels", width = 250)
 
 plot_node_importance(5, 20, experiments = EXP_LABELS)
 ggsave_default("node_importance_5_labels", width = 200)
@@ -286,13 +301,15 @@ EXP_FEATURES_A <- c(
 )
 
 plot_node_importance_all_layers(EXP_FEATURES_A[c(1, 2)])
-ggsave_default("node_importance_scrambled_features_0.5_seed_0", width = 500, height = 200)
+ggsave_default("node_importance_scrambled_features_0.5_seed_0",
+               width = 500, height = 100)
 
 plot_node_importance_all_layers(EXP_FEATURES_A[c(1, 3)])
-ggsave_default("node_importance_scrambled_features_0.5_seed_1", width = 500, height = 200)
+ggsave_default("node_importance_scrambled_features_0.5_seed_1",
+               width = 500, height = 100)
 
 plot_node_importance(6, experiments = EXP_FEATURES_A)
-ggsave_default("node_importance_6_features_0.5", width = 250, height = 200)
+ggsave_default("node_importance_6_features_0.5", width = 250)
 
 plot_node_importance(5, 20, experiments = EXP_FEATURES_A)
 ggsave_default("node_importance_5_features_0.5", width = 200)
@@ -308,13 +325,15 @@ EXP_FEATURES_B <- c(
 )
 
 plot_node_importance_all_layers(EXP_FEATURES_B[c(1, 2)])
-ggsave_default("node_importance_scrambled_features_0.05_seed_0", width = 500, height = 200)
+ggsave_default("node_importance_scrambled_features_0.05_seed_0",
+               width = 500, height = 100)
 
 plot_node_importance_all_layers(EXP_FEATURES_B[c(1, 3)])
-ggsave_default("node_importance_scrambled_features_0.05_seed_1", width = 500, height = 200)
+ggsave_default("node_importance_scrambled_features_0.05_seed_1",
+               width = 500, height = 100)
 
 plot_node_importance(6, experiments = EXP_FEATURES_B)
-ggsave_default("node_importance_6_features_0.05", width = 250, height = 200)
+ggsave_default("node_importance_6_features_0.05", width = 250)
 
 plot_node_importance(5, 20, experiments = EXP_FEATURES_B)
 ggsave_default("node_importance_5_features_0.05", width = 200)
@@ -329,10 +348,11 @@ EXP_FEATURES_C <- c(
 )
 
 plot_node_importance_all_layers(EXP_FEATURES_C)
-ggsave_default("node_importance_scrambled_features_0.001", width = 500, height = 200)
+ggsave_default("node_importance_scrambled_features_0.001",
+               width = 500, height = 100)
 
 plot_node_importance(6, experiments = EXP_FEATURES_C)
-ggsave_default("node_importance_6_features_0.001", width = 250, height = 200)
+ggsave_default("node_importance_6_features_0.001", width = 250)
 
 plot_node_importance(5, 20, experiments = EXP_FEATURES_C)
 ggsave_default("node_importance_5_features_0.001", width = 200)
@@ -438,179 +458,28 @@ ggsave_default("curve_pr", width = 250)
 
 
 
+# Node degrees ------------------------------------------------------------
 
-# Unused analyses ---------------------------------------------------------
+node_importance %>%
+  filter(experiment == "default", seed == "234_20080808") %>%
+  ggplot(aes(coef_graph, coef)) +
+  geom_point(aes(color = modified), alpha = .25) +
+  facet_wrap(vars(layer), scales = "free_x")
 
-## Load weights
-
-# # only load weights for layers 3–6 due to memory limits
-# # data for layer 1 is too big even if loaded separately :(
-# link_weights <-
-#   dir_ls(
-#     regex = str_glue("data/{DATA_DIR}/.+/link_weights_[3-6]\\.csv"),
-#     recurse = TRUE
-#   ) %>%
-#   map_dfr(
-#     ~read_csv(.) %>%
-#       rename(source = X1) %>%
-#       pivot_longer(!source, names_to = "sink", values_to = "weight"),
-#     .id = "file"
-#   ) %>%
-#   extract(
-#     file,
-#     into = c("seed", "layer"),
-#     regex = str_glue("{DATA_DIR}/(.+)/link_weights_(.)"),
-#     convert = TRUE
-#   ) %>%
-#   unite(source, sink, col = name, remove = FALSE)
-
-
-
-## Clustering
-
-# plot_corr_mat <- function(layer,
-#                           type = c("node", "link"),
-#                           abs_weights = FALSE) {
-#   type <- match.arg(type)
-#
-#   if (type == "node")
-#     corr_mat <-
-#       node_importance %>%
-#       filter(layer %in% {{layer}}, !near(coef, 0)) %>%
-#       select(seed, node, coef) %>%
-#       pivot_wider(names_from = seed, values_from = coef) %>%
-#       column_to_rownames("node")
-#   else
-#     corr_mat <-
-#       link_weights %>%
-#       filter(layer == {{layer}}, !near(weight, 0)) %>%
-#       select(seed, name, weight) %>%
-#       pivot_wider(names_from = seed, values_from = weight) %>%
-#       column_to_rownames("name")
-#
-#   corr_mat <-
-#     corr_mat %>%
-#     as.matrix() %>%
-#     replace_na(0) %>%
-#     cor(use = "pairwise.complete.obs")
-#
-#   if (abs_weights) {
-#     corr_mat <- abs(corr_mat)
-#     type <- "link_abs"
-#   }
-#
-#   distance <- as.dist(1 - corr_mat)
-#
-#   p <- Heatmap(
-#     corr_mat,
-#     col = circlize::colorRamp2(
-#       seq(min(corr_mat), max(corr_mat), length.out = 9),
-#       brewer.pal(9, "YlGnBu"),
-#     ),
-#     name = "correlation",
-#     heatmap_legend_param = list(
-#       at = round(c(min(corr_mat), max(corr_mat)), 2)
-#     ),
-#
-#     show_row_names = FALSE,
-#     show_column_dend = FALSE,
-#     show_column_names = FALSE,
-#
-#     clustering_distance_rows = distance,
-#     clustering_distance_columns = distance,
-#
-#     width = unit(100, "mm"),
-#     height = unit(100, "mm"),
-#   )
-#   ggsave_default(
-#     str_glue("corr_{type}_{str_c(layer, collapse = '+')}"),
-#     plot = p,
-#     height = 300
-#   )
-#   p
-# }
-#
-# 1:6 %>% walk(plot_corr_mat, "node")
-# plot_corr_mat(1:6, "node")
-# 3:6 %>% walk(plot_corr_mat, "link", abs_weights = FALSE)
-# 3:6 %>% walk(plot_corr_mat, "link", abs_weights = TRUE)
-
-
-
-## Weights
-
-# plot_link_weights <- function(layer, top_links = Inf, abs_weights = FALSE) {
-#   vis_data <-
-#     link_weights %>%
-#     filter(layer == {{layer}})
-#
-#   selected_edges <-
-#     vis_data %>%
-#     group_by(name) %>%
-#     summarise(keep = sum(weight) > 0) %>%
-#     filter(keep) %>%
-#     pull(name)
-#
-#   vis_data <-
-#     vis_data %>%
-#     filter(name %in% selected_edges)
-#
-#   if (abs_weights) {
-#     vis_data <-
-#       vis_data %>%
-#       mutate(weight = abs(weight))
-#     sort_fun <- median
-#   } else {
-#     sort_fun <- sd
-#   }
-#
-#   top_links <-
-#     vis_data %>%
-#     filter() %>%
-#     group_by(name) %>%
-#     summarise(weight = sort_fun(weight)) %>%
-#     slice_max(weight, n = top_links, with_ties = FALSE) %>%
-#     pull(name)
-#
-#   vis_data <-
-#     vis_data %>%
-#     filter(name %in% top_links) %>%
-#     mutate(name = factor(name) %>% fct_reorder(weight, .fun = sort_fun))
-#
-#   ggplot(vis_data, aes(name, weight)) +
-#     geom_violin(scale = "width") +
-#     geom_point(
-#       alpha = .25,
-#       size = 1,
-#       position = position_jitter(width = .25, seed = 1)
-#     ) +
-#     geom_point(
-#       data =
-#         vis_data %>% filter(seed == "234_20080808"),
-#       color = "red"
-#     ) +
-#     xlab("edge") +
-#     ylab(if_else(abs_weights, "absolute weight", "weight")) +
-#     coord_flip() +
-#     theme_bw()
-# }
-#
-# plot_link_weights(6)
-# ggsave_default("link_weights_6", height = 150, width = 200)
-# plot_link_weights(6, 200, abs_weights = TRUE)
-# ggsave_default("link_weights_6_abs", height = 150, width = 200)
-#
-# plot_link_weights(5, 100)
-# ggsave_default("link_weights_5", height = 300, width = 200)
-# plot_link_weights(5, 100, abs_weights = TRUE)
-# ggsave_default("link_weights_5_abs", height = 300, width = 200)
-#
-# plot_link_weights(4, 100)
-# ggsave_default("link_weights_4", height = 600, width = 200)
-# plot_link_weights(4, 100, abs_weights = TRUE)
-# ggsave_default("link_weights_4_abs", height = 600, width = 200)
-#
-# plot_link_weights(3, 100)
-# ggsave_default("link_weights_3", height = 600, width = 200)
-# plot_link_weights(3, 100, abs_weights = TRUE)
-# ggsave_default("link_weights_3_abs", height = 600, width = 200)
+# scrambled_labels_balanced
+# correlated
+# default
+node_importance %>%
+  # filter(experiment == "default") %>%
+  filter(experiment %in% c("default",
+                           "correlated",
+                           "scrambled_labels_balanced",
+                           "scrambled_features_0.5_seed_0")) %>%
+  # filter(seed == "234_20080808") %>%
+  filter(!modified) %>%
+  ggplot(aes(coef_graph, coef)) +
+  geom_point(alpha = .15) +
+  geom_smooth(method = "lm") +
+  # facet_wrap(vars(layer), scales = "free_x")
+  facet_grid(vars(experiment), vars(layer), scales = "free_x")
+ggsave_default("importance_vs_degree", height = 250)

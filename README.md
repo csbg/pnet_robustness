@@ -87,7 +87,7 @@ Run PNET with default settings.
 
 ```bash
 Rscript prepare_default.R
-run_pnet.sh default
+./run_pnet.sh default
 ```
 
 
@@ -107,7 +107,7 @@ run_pnet.sh correlated
 
 ```bash
 git apply --directory=pnet_prostate_paper pnet_data/patch_high_dropout.diff
-run_pnet.sh dropout_high
+./run_pnet.sh dropout_high
 git apply -R --directory=pnet_prostate_paper pnet_data/patch_high_dropout.diff
 ```
 
@@ -115,7 +115,7 @@ git apply -R --directory=pnet_prostate_paper pnet_data/patch_high_dropout.diff
 
 ```bash
 git apply --directory=pnet_prostate_paper pnet_data/patch_no_dropout.diff
-run_pnet.sh dropout_none
+./run_pnet.sh dropout_none
 git apply -R --directory=pnet_prostate_paper pnet_data/patch_no_dropout.diff
 ```
 
@@ -126,14 +126,14 @@ git apply -R --directory=pnet_prostate_paper pnet_data/patch_no_dropout.diff
 
 ```bash
 Rscript prepare_scrambled_labels.R TRUE 0
-run_pnet.sh scrambled_labels
+./run_pnet.sh scrambled_labels
 ```
 
 (2) Use uniform class frequencies.
 
 ```bash
 Rscript prepare_scrambled_labels.R FALSE 0
-run_pnet.sh scrambled_labels_balanced
+./run_pnet.sh scrambled_labels_balanced
 ```
 
 
@@ -143,19 +143,19 @@ Scramble input features. Values in the mutation (CNA) matrix are replaced by 0 a
 
 ```bash
 Rscript prepare_scrambled_features.R 0.5 0
-run_pnet.sh scrambled_features_0.5_seed_0
+./run_pnet.sh scrambled_features_0.5_seed_0
 
 Rscript prepare_scrambled_features.R 0.05 0
-run_pnet.sh scrambled_features_0.05_seed_0
+./run_pnet.sh scrambled_features_0.05_seed_0
 
 Rscript prepare_scrambled_features.R 0.001 0
-run_pnet.sh scrambled_features_0.001_seed_0
+./run_pnet.sh scrambled_features_0.001_seed_0
 
 Rscript prepare_scrambled_features.R 0.5 1
-run_pnet.sh scrambled_features_0.5_seed_1
+./run_pnet.sh scrambled_features_0.5_seed_1
 
 Rscript prepare_scrambled_features.R 0.05 1
-run_pnet.sh scrambled_features_0.05_seed_1
+./run_pnet.sh scrambled_features_0.05_seed_1
 ```
 
 
@@ -166,7 +166,11 @@ These files are directly copied from the PNET output folders (`analysis/extracte
 
 - `node_importance_graph_adjusted.csv` contains node importance scores; important columns:
   - (first, unnamed): node name
-  - coef: node importance scores
+  - coef: original node importance scores
+  - coef_graph: indegree plus outdegree of node
+  - coef_combined: adjusted node importance score (= coef / coef_graph if coef_graph > mean(coef_graph) + 5 sd(coef_graph) in the respective layer)
+  - coef_combined_zscore: scaled coef_combined
+  - coef_combined2: z(z(coef_graph) - z(coef))
   - layer: layer of the node
 - `link_weights_X.csv`: link weights from layer X (nodes in row) to the next layer (nodes as columns)
 - `onsplit_average_reg_10_tanh_large_testing/P-net_ALL_testing.csv`: predictions for the test set, with the following columns:

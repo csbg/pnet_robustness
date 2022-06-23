@@ -6,7 +6,7 @@ results_dir="data/$experiment_name"
 mkdir -p $results_dir
 
 echo "Running PNET ..."
-for seed in {-1..9}
+for seed in {-1..49}
 do
   if [ $seed -eq -1 ]
   then

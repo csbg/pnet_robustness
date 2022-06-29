@@ -71,7 +71,7 @@ Set up the environment:
 # first line only required if conda is not activated in .bashrc
 source /home/wolfgang/Programs/miniconda3/etc/profile.d/conda.sh
 conda activate pnet_env
-export PYTHONPATH=$PWD/pnet-prostate-cancer:$PYTHONPATH
+export PYTHONPATH=$PWD/pnet_prostate_paper:$PYTHONPATH
 ```
 
 Generally, each experiment comprises two steps:
@@ -97,7 +97,7 @@ Input data is modified so that presence of mutation and copy number amplificatio
 
 ```bash
 Rscript prepare_correlated.R
-run_pnet.sh correlated
+./run_pnet.sh correlated
 ```
 
 

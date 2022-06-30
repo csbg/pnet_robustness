@@ -466,20 +466,35 @@ node_importance %>%
   geom_point(aes(color = modified), alpha = .25) +
   facet_wrap(vars(layer), scales = "free_x")
 
-# scrambled_labels_balanced
-# correlated
-# default
-node_importance %>%
-  # filter(experiment == "default") %>%
-  filter(experiment %in% c("default",
-                           "correlated",
-                           "scrambled_labels_balanced",
-                           "scrambled_features_0.5_seed_0")) %>%
-  # filter(seed == "234_20080808") %>%
-  filter(!modified) %>%
-  ggplot(aes(coef_graph, coef)) +
-  geom_point(alpha = .15) +
-  geom_smooth(method = "lm") +
-  # facet_wrap(vars(layer), scales = "free_x")
-  facet_grid(vars(experiment), vars(layer), scales = "free_x")
-ggsave_default("importance_vs_degree", height = 250)
+plot_importance_vs_degree <- function(experiment) {
+  node_importance %>%
+    filter(experiment == {{experiment}}) %>%
+    # filter(experiment %in% c("default",
+    #                          "correlated",
+    #                          "scrambled_labels_balanced",
+    #                          "scrambled_features_0.5_seed_0")) %>%
+    # filter(seed == "234_20080808") %>%
+    filter(!modified) %>%
+    ggplot(aes(coef_graph, coef)) +
+    geom_point(alpha = .15) +
+    geom_smooth(method = "lm") +
+    xlab("node degree") +
+    ylab("node importance") +
+    facet_wrap(vars(layer), nrow = 1, scales = "free") +
+    # facet_grid(
+    #   vars(experiment),
+    #   vars(layer),
+    #   scales = "free",
+    #   labeller = "label_both"
+    # )
+    NULL
+}
+
+plot_importance_vs_degree("default")
+ggsave_default("importance_vs_degree_default", height = 70)
+
+plot_importance_vs_degree("correlated")
+ggsave_default("importance_vs_degree_correlated", height = 70)
+
+plot_importance_vs_degree("scrambled_labels_balanced")
+ggsave_default("importance_vs_degree_scrambled", height = 70)

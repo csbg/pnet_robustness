@@ -25,8 +25,4 @@ do
   cp pnet_prostate_paper/analysis/extracted/node_importance_graph_adjusted.csv $target_dir/node_importance.csv
   cp pnet_prostate_paper/_logs/p1000/pnet/onsplit_average_reg_10_tanh_large_testing/P-net_ALL_testing.csv $target_dir/predictions_test.csv
   cp pnet_prostate_paper/_logs/p1000/pnet/onsplit_average_reg_10_tanh_large_testing/P-net_ALL_training.csv $target_dir/predictions_train.csv
-  if [ $seed -eq -1 ]
-  then
-    cp pnet_prostate_paper/_logs/*.csv $target_dir
-  fi
 done

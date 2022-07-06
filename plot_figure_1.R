@@ -1,22 +1,25 @@
 library(tidyverse)
 library(fs)
+library(yardstick)
+library(ComplexHeatmap)
+library(khroma)
+library(igraph)
 source("styling.R")
+
+ht_opt(
+  simple_anno_size = unit(1.5, "mm"),
+  COLUMN_ANNO_PADDING = unit(1, "pt"),
+  DENDROGRAM_PADDING = unit(1, "pt"),
+  HEATMAP_LEGEND_PADDING = unit(1, "mm"),
+  ROW_ANNO_PADDING = unit(1, "pt"),
+  TITLE_PADDING = unit(1, "mm")
+)
+
 
 
 # Load data ---------------------------------------------------------------
 
-loaded_experiments <- c(
-  "default",
-  "correlated",
-  "scrambled_labels_balanced"
-)
-
 original_seed <- "234_20080808"
-
-loaded_seeds <- c(
-  original_seed,
-  str_c(0:49, "_", 0:49)
-)
 
 reactome_names <-
   read_tsv(
@@ -27,7 +30,7 @@ reactome_names <-
 
 node_importance <-
   dir_ls(
-    glob = str_glue("data/*/*/node_importance_graph_adjusted.csv"),
+    glob = str_glue("data/*/*/node_importance.csv"),
     recurse = TRUE
   ) %>%
   map_dfr(
@@ -43,11 +46,122 @@ node_importance <-
     regex = str_glue("data/(.+)/(.+)/"),
     convert = TRUE
   ) %>%
-  filter(experiment %in% loaded_experiments, seed %in% loaded_seeds)
+  group_by(experiment, seed, layer) %>%
+  mutate(
+    modified = coef_graph > mean(coef_graph) + 5 * sd(coef_graph),
+  ) %>%
+  ungroup()
+
+predictions <-
+  dir_ls(
+    glob = "data/*/*/predictions_test.csv",
+    recurse = TRUE
+  ) %>%
+  map_dfr(
+    ~read_csv(., col_types = "cfdf"),
+    .id = "file"
+  ) %>%
+  extract(
+    file,
+    into = c("experiment", "seed"),
+    regex = str_glue("data/(.+?)/(.+?)/"),
+    convert = TRUE
+  ) %>%
+  transmute(
+    experiment,
+    seed,
+    obs = X1,
+    truth = fct_recode(y, class_1 = "1", class_0 = "0"),
+    class_1 = pred_scores,
+    predicted = fct_recode(pred, class_1 = "1.0", class_0 = "0.0")
+  )
+
+# only include nodes with connectivity; therefore, load link weight matrices of
+# NN and search for nonzero entries
+pnet_edges <-
+  map_dfr(
+    0:6,
+    function(layer) {
+      df <- read_csv(str_glue("pnet_prostate_paper/analysis/extracted/link_weights_{layer}.csv"))
+      if (layer == 0) {
+        colnames(df)[1] <- "to"
+        colnames(df)[2] <- "from"
+      } else {
+        colnames(df)[1] <- "from"
+        df <-
+          df %>%
+          pivot_longer(!from, names_to = "to", values_to = "has_edge") %>%
+          filter(has_edge != 0) %>%
+          select(!has_edge)
+      }
+      df %>%
+        transmute(
+          from = paste0(from, ":", layer - 1),
+          to = paste0(to, ":", layer)
+        )
+    }
+  )
+pnet_edges %>% count(layer)
+
+pnet_graph <-
+  pnet_edges %>%
+  graph_from_data_frame()
+
+# PNET sets indegrees for all genes (layer 0) to 1 and degree = outdegree
+# here, indegree is (correctly) 3
+graph_stats <- tibble(
+  reactome_id = names(V(pnet_graph)),
+  indegree = degree(pnet_graph, mode = "in"),
+  outdegree = degree(pnet_graph, mode = "out"),
+  degree = indegree + outdegree,
+  reachability = map_int(
+    reactome_id,
+    ~subcomponent(pnet_graph, .x, "out") %>% length()
+  ),
+  betweenness = betweenness(pnet_graph)
+)
 
 
 
-# Figure 1a ---------------------------------------------------------------
+# Figure 1 ----------------------------------------------------------------
+
+## c ----
+
+plot_roc <- function(experiment) {
+  pred <-
+    predictions %>%
+    filter(experiment == {{experiment}}) %>%
+    group_by(seed)
+
+  plot_data <-
+    group_keys(pred) %>%
+    mutate(
+      metrics =
+        pred %>%
+        group_split() %>%
+        map(roc_curve, truth, class_1)
+    ) %>%
+    unnest(metrics)
+
+  ggplot(plot_data, aes(1 - specificity, sensitivity, group = seed)) +
+    geom_path(alpha = .1, size = BASE_LINE_SIZE) +
+    geom_path(
+      data = plot_data %>% filter(seed == original_seed),
+      size = BASE_LINE_SIZE,
+      color = ORIGINAL_SEED_COLOR
+    ) +
+    scale_x_continuous(limits = c(0, 1), breaks = c(0, .5, 1)) +
+    scale_y_continuous(limits = c(0, 1), breaks = c(0, .5, 1)) +
+    coord_fixed() +
+    theme_pub() +
+    theme(panel.grid = element_blank())
+}
+
+plot_roc("default")
+ggsave_publication("1c_roc", width = 4, height = 4)
+
+
+## d ----
 
 plot_robustness <- function(top_nodes = 10) {
   node_importance <-
@@ -86,8 +200,6 @@ plot_robustness <- function(top_nodes = 10) {
                            "ordered by importance in the original network")) +
     scale_y_continuous("node importance (z-score)") +
     scale_color_manual(values = EXPERIMENT_COLORS) +
-    ggtitle(paste("Training of replicate networks",
-                  "reveals variability of interpretations")) +
     facet_wrap(vars(layer), scales = "free_x", nrow = 1) +
     theme_pub() +
     theme(
@@ -98,13 +210,70 @@ plot_robustness <- function(top_nodes = 10) {
 }
 
 plot_robustness()
-ggsave_publication("1a_robustness", width = 18, height = 4)
+ggsave_publication("1d_robustness", width = 18, height = 4)
+
+
+## e ----
+
+plot_changes <- function(seed = "1_1", top_nodes = c(4, 43)) {
+  plot_data <-
+    node_importance %>%
+    filter(experiment == "default", layer == 1)
+
+  top_nodes <-
+    plot_data %>%
+    filter(seed == original_seed) %>%
+    slice_max(coef_combined, n = top_nodes[2], with_ties = FALSE) %>%
+    slice_min(coef_combined, n = top_nodes[2] - top_nodes[1] + 1, with_ties = FALSE) %>%
+    arrange(desc(coef_combined))
+
+  plot_data <-
+    plot_data %>%
+    filter(seed %in% c(original_seed, {{seed}})) %>%
+    semi_join(top_nodes, by = "reactome_id") %>%
+    mutate(reactome_id = factor(reactome_id,
+                                levels = top_nodes$reactome_id)) %>%
+    select(seed, reactome_id, coef_combined)
+
+  ggplot(plot_data, aes(reactome_id, coef_combined)) +
+    geom_segment(
+      data = plot_data %>%
+        mutate(
+          seed = fct_recode(seed,
+                            original = original_seed,
+                            replicate = {{seed}})
+        ) %>%
+        pivot_wider(names_from = seed, values_from = coef_combined),
+      aes(xend = reactome_id, yend = replicate, y = original),
+      arrow = arrow(length = unit(1, "mm"), ends = "last", type = "closed"),
+      size = BASE_LINE_SIZE
+    ) +
+    geom_point(
+      data =
+        plot_data %>%
+        filter(seed == original_seed),
+      size = 1,
+      color = ORIGINAL_SEED_COLOR,
+      show.legend = FALSE
+    ) +
+    scale_x_discrete("node") +
+    scale_y_continuous("node importance") +
+    theme_pub(rotate_x_labels = TRUE) +
+    theme(
+      panel.grid = element_blank()
+    )
+}
+
+plot_changes("28_28")
+ggsave_publication("1e_changes", width = 8, height = 4)
 
 
 
-# Figure 1b ---------------------------------------------------------------
+# Figure 2 ----------------------------------------------------------------
 
-plot_bias <- function(experiment, title = "", top_nodes = 5) {
+## b ----
+
+plot_bias <- function(experiment, top_nodes = 5) {
   node_importance <-
     node_importance %>%
     filter(experiment == {{experiment}})
@@ -142,7 +311,6 @@ plot_bias <- function(experiment, title = "", top_nodes = 5) {
     scale_y_continuous("node importance (z-score)") +
     scale_color_manual(values = EXPERIMENT_COLORS) +
     facet_wrap(vars(layer), scales = "free_x", nrow = 1) +
-    ggtitle(title) +
     theme_pub() +
     theme(
       axis.text.x = element_blank(),
@@ -151,14 +319,13 @@ plot_bias <- function(experiment, title = "", top_nodes = 5) {
     )
 }
 
-plot_bias("correlated", title = "Artificial inputs reveal network biases")
-ggsave_publication("1b_correlated", width = 18, height = 4)
+plot_bias("correlated")
+ggsave_publication("2b_correlated", width = 14, height = 4)
 
 
+## c ----
 
-# Figure 1c ---------------------------------------------------------------
-
-plot_bias_comparison <- function(experiment, title = "", top_nodes = 5) {
+plot_bias_comparison <- function(experiment, top_nodes = 5) {
   node_importance <-
     node_importance %>%
     filter(experiment %in% c("default", {{experiment}}))
@@ -200,7 +367,6 @@ plot_bias_comparison <- function(experiment, title = "", top_nodes = 5) {
     scale_y_continuous("node importance (z-score)") +
     scale_color_manual(values = EXPERIMENT_COLORS) +
     facet_wrap(vars(layer), scales = "free_x", nrow = 1) +
-    ggtitle(title) +
     theme_pub() +
     theme(
       axis.text.x = element_blank(),
@@ -209,30 +375,207 @@ plot_bias_comparison <- function(experiment, title = "", top_nodes = 5) {
     )
 }
 
-plot_bias_comparison(
-  "correlated",
-  title = paste("Comparison of importance measures from control",
-                "and real inputs quantifies network biases")
+plot_bias_comparison("correlated")
+ggsave_publication("2c_correlated_comparison", width = 14, height = 4)
+
+
+
+## d ----
+
+plot_roc("correlated")
+ggsave_publication("2d_roc", width = 4, height = 4)
+
+
+
+# Figure 3 ----------------------------------------------------------------
+
+## b ----
+
+plot_bias("scrambled_labels_balanced")
+ggsave_publication("3b_scrambled", width = 14, height = 4)
+
+
+## c ----
+
+plot_bias_comparison("scrambled_labels_balanced")
+ggsave_publication("3c_scrambled_comparison", width = 14, height = 4)
+
+
+## d ----
+
+plot_roc("scrambled_labels_balanced")
+ggsave_publication("3d_roc", width = 4, height = 4)
+
+
+
+# Figure 4 ----------------------------------------------------------------
+
+plot_corr_heatmap <- function(layer = NULL) {
+  if (!is.null(layer)) {
+    node_importance <-
+      node_importance %>%
+      filter(layer == {{layer}})
+  }
+
+  corr_mat <-
+    node_importance %>%
+    unite(experiment, seed, col = "exp_seed", sep = "+") %>%
+    select(exp_seed, reactome_id, coef_combined) %>%
+    pivot_wider(names_from = exp_seed, values_from = coef_combined) %>%
+    select(!reactome_id) %>%
+    cor()
+
+  distance <- as.dist(1 - corr_mat)
+
+  col_metadata <-
+    tibble(exp_seed = colnames(corr_mat)) %>%
+    separate(exp_seed, into = c("experiment", "seed"), sep = "\\+")
+  col_metadata
+
+  Heatmap(
+    corr_mat,
+    col = circlize::colorRamp2(
+      seq(min(corr_mat), max(corr_mat), length.out = 9),
+      color("davos", reverse = TRUE)(9),
+    ),
+    name = "correlation of\nnode importance\nscores",
+    heatmap_legend_param = list(
+      at = round(c(min(corr_mat), max(corr_mat)), 2),
+      border = FALSE,
+      grid_width = unit(2, "mm"),
+      labels_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+      legend_height = unit(15, "mm"),
+      title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT)
+    ),
+
+    clustering_distance_rows = distance,
+    clustering_distance_columns = distance,
+    row_dend_gp = gpar(lwd = 0.5),
+    row_title = "seeds",
+    row_title_side = "right",
+    row_title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+
+    width = unit(50, "mm"),
+    height = unit(50, "mm"),
+    border = FALSE,
+
+    show_column_dend = FALSE,
+    show_column_names = FALSE,
+    show_row_names = FALSE,
+
+    left_annotation = rowAnnotation(
+      experiment = col_metadata$experiment,
+      col = list(experiment = EXPERIMENT_COLORS),
+      show_annotation_name = FALSE,
+      show_legend = TRUE,
+      annotation_legend_param = list(
+        experiment = list(
+          title = "experiment",
+          grid_width = unit(2, "mm"),
+          labels_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+          title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT)
+        )
+      )
+    )
+  )
+}
+
+(p <- plot_corr_heatmap())
+ggsave_publication("4_corr_heatmap", plot = p,
+                   width = 11, height = 6, type = "png")
+
+walk(
+  1:6,
+  function(l) {
+    p <- plot_corr_heatmap(l)
+    ggsave_publication(str_glue("4_corr_heatmap_layer_{l}"), plot = p,
+                       width = 11, height = 6, type = "png")
+  }
 )
-ggsave_publication("1c_correlated_comparison", width = 18, height = 4)
 
 
 
-# Figure 1d ---------------------------------------------------------------
+# Figure S1 ---------------------------------------------------------------
 
-plot_bias(
-  "scrambled_labels_balanced",
-  title = "Randomized target labels provide a second control for network biases"
-)
-ggsave_publication("1d_scrambled", width = 18, height = 4)
+plot_importance_vs_degree <- function(experiment, measure, x_title) {
+  plot_data <-
+    node_importance %>%
+    filter(experiment == {{experiment}}, !modified) %>%
+    # filter(seed == original_seed) %>%
+    left_join(
+      graph_stats %>%
+        separate(reactome_id, into = c("reactome_id", "layer"), sep = "\\:") %>%
+        mutate(layer = as.integer(layer) + 1),
+      by = c("reactome_id", "layer")
+    )
+
+  color_max <- 100
+  # color_max <- quantile(plot_data %>% pull({{measure}}), 0.999)
+
+  ggplot(plot_data, aes({{measure}}, coef)) +
+    # geom_point(alpha = .15, size = .25) +
+    geom_hex(bins = 25) +
+    geom_smooth(method = "lm", size = BASE_LINE_SIZE) +
+    # scale_y_log10() +
+    scale_fill_distiller(
+      palette = "YlGnBu",
+      direction = 1,
+      limits = c(0, color_max),
+      breaks = c(0, color_max),
+      labels = c("0", str_glue("{color_max} and above")),
+      oob = scales::oob_squish,
+      guide = guide_colorbar(
+        barheight = unit(15, "mm"),
+        barwidth = unit(2, "mm"),
+        ticks = FALSE
+      ),
+    ) +
+    xlab(x_title) +
+    ylab("node importance") +
+    facet_wrap(vars(layer), nrow = 1, scales = "free") +
+    theme_pub()
+}
+
+plot_importance_vs_degree("default", degree, "node degree")
+ggsave_publication("s1_importance_vs_degree_default",
+                   width = 18, height = 3, type = "png")
+
+plot_importance_vs_degree("correlated", degree, "node degree")
+ggsave_publication("s1_importance_vs_degree_correlated",
+                   width = 18, height = 3, type = "png")
+
+plot_importance_vs_degree("scrambled_labels_balanced", degree, "node degree")
+ggsave_publication("s1_importance_vs_degree_scrambled",
+                   width = 18, height = 3, type = "png")
 
 
+plot_importance_vs_degree("default", reachability, "reachability")
+ggsave_publication("s1_importance_vs_reachability_default",
+                   width = 18, height = 3, type = "png")
 
-# Figure 1e ---------------------------------------------------------------
+plot_importance_vs_degree("correlated", reachability, "reachability")
+ggsave_publication("s1_importance_vs_reachability_correlated",
+                   width = 18, height = 3, type = "png")
 
-plot_bias_comparison(
-  "scrambled_labels_balanced",
-  title = paste("Comparison of importance measures from randomized",
-                "and real targets quantifies network biases")
-)
-ggsave_publication("1e_scrambled_comparison", width = 18, height = 4)
+plot_importance_vs_degree("scrambled_labels_balanced", reachability, "reachability")
+ggsave_publication("s1_importance_vs_reachability_scrambled",
+                   width = 18, height = 3, type = "png")
+
+
+plot_importance_vs_degree("default", betweenness, "betweenness")
+ggsave_publication("s1_importance_vs_betweenness_default",
+                   width = 18, height = 3, type = "png")
+
+plot_importance_vs_degree("correlated", betweenness, "betweenness")
+ggsave_publication("s1_importance_vs_betweenness_correlated",
+                   width = 18, height = 3, type = "png")
+
+plot_importance_vs_degree("scrambled_labels_balanced", betweenness, "betweenness")
+ggsave_publication("s1_importance_vs_betweenness_scrambled",
+                   width = 18, height = 3, type = "png")
+
+
+graph_stats %>%
+  filter(reactome_id %>% str_ends("6")) %>%
+  count(reachability)
+

@@ -65,14 +65,19 @@ theme_pub <- function(rotate_x_labels = FALSE, ...){
 }
 
 
-
 #' Save a publication-quality plot.
 #'
 #' @param filename Filename, will be saved in subfolder `plots/final`.
+#' @param plot Plot object.
+#' @param width Width in cm.
+#' @param height Height in cm.
 #' @param type Type of image file.
 #' @param dpi Resolution.
 #' @param ... Other parameters passed to the plotting function.
 ggsave_publication <- function(filename,
+                               plot = NULL,
+                               width = 4,
+                               height = 4,
                                type = "pdf",
                                dpi = 1200,
                                ...) {
@@ -81,11 +86,41 @@ ggsave_publication <- function(filename,
     path_dir() %>%
     dir_create()
 
-  ggsave(
-    filename,
-    dpi = dpi,
-    units = "cm",
-    limitsize = FALSE,
-    ...
-  )
+  if (is.null(plot)) {
+    # if last_plot() is available, use ggsave()
+    ggsave(
+      filename,
+      dpi = dpi,
+      units = "cm",
+      limitsize = FALSE,
+      width = width,
+      height = height,
+      ...
+    )
+  } else {
+    # for non-ggplot objects, use the base R functions directly;
+    # only png and pdf backends are supported
+    if (type == "png") {
+      png(
+        filename,
+        res = dpi,
+        units = "cm",
+        width = width,
+        height = height,
+        ...
+      )
+    } else if (type == "pdf") {
+      pdf(
+        filename,
+        width = width / 2.54,  # dimensions for pdf() must be inches
+        height = height / 2.54,
+        ...
+      )
+    } else {
+      stop("Type", type, "cannot be saved.")
+    }
+
+    print(plot)
+    dev.off()
+  }
 }

@@ -6,9 +6,9 @@ library(fs)
 # Common definitions ------------------------------------------------------
 
 EXPERIMENT_COLORS <- c(
-  "default" = "black",
+  "default" = "gray50",
   "correlated" = "#3182bd",
-  "scrambled_labels_balanced" = "#e69f00"
+  "scrambled" = "#e69f00"
 )
 
 ORIGINAL_SEED_COLOR <- "red"

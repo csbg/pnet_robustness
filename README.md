@@ -126,14 +126,14 @@ git apply -R --directory=pnet_prostate_paper pnet_data/patch_no_dropout.diff
 
 ```bash
 Rscript prepare_scrambled_labels.R TRUE 0
-./run_pnet.sh scrambled_labels
+./run_pnet.sh scrambled_labels_original_class_frequency
 ```
 
 (2) Use uniform class frequencies.
 
 ```bash
 Rscript prepare_scrambled_labels.R FALSE 0
-./run_pnet.sh scrambled_labels_balanced
+./run_pnet.sh scrambled
 ```
 
 

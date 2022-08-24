@@ -101,7 +101,6 @@ pnet_edges <-
         )
     }
   )
-pnet_edges %>% count(layer)
 
 pnet_graph <-
   pnet_edges %>%
@@ -116,7 +115,7 @@ graph_stats <- tibble(
   degree = indegree + outdegree,
   reachability = map_int(
     reactome_id,
-    ~subcomponent(pnet_graph, .x, "out") %>% length()
+    ~subcomponent(pnet_graph, .x, "in") %>% length()
   ),
   betweenness = betweenness(pnet_graph)
 )
@@ -391,19 +390,19 @@ ggsave_publication("2d_roc", width = 4, height = 4)
 
 ## b ----
 
-plot_bias("scrambled_labels_balanced")
+plot_bias("scrambled")
 ggsave_publication("3b_scrambled", width = 14, height = 4)
 
 
 ## c ----
 
-plot_bias_comparison("scrambled_labels_balanced")
+plot_bias_comparison("scrambled")
 ggsave_publication("3c_scrambled_comparison", width = 14, height = 4)
 
 
 ## d ----
 
-plot_roc("scrambled_labels_balanced")
+plot_roc("scrambled")
 ggsave_publication("3d_roc", width = 4, height = 4)
 
 
@@ -497,7 +496,7 @@ walk(
 
 # Figure S1 ---------------------------------------------------------------
 
-plot_importance_vs_degree <- function(experiment, measure, x_title) {
+plot_importance_vs_degree <- function(experiment, measure) {
   plot_data <-
     node_importance %>%
     filter(experiment == {{experiment}}, !modified) %>%
@@ -510,9 +509,9 @@ plot_importance_vs_degree <- function(experiment, measure, x_title) {
     )
 
   color_max <- 100
-  # color_max <- quantile(plot_data %>% pull({{measure}}), 0.999)
+  # color_max <- quantile(plot_data %>% pull(.data[[measure]]), 0.999)
 
-  ggplot(plot_data, aes({{measure}}, coef)) +
+  ggplot(plot_data, aes(.data[[measure]], coef)) +
     # geom_point(alpha = .15, size = .25) +
     geom_hex(bins = 25) +
     geom_smooth(method = "lm", size = BASE_LINE_SIZE) +
@@ -530,52 +529,105 @@ plot_importance_vs_degree <- function(experiment, measure, x_title) {
         ticks = FALSE
       ),
     ) +
-    xlab(x_title) +
+    xlab(measure) +
     ylab("node importance") +
     facet_wrap(vars(layer), nrow = 1, scales = "free") +
     theme_pub()
 }
 
-plot_importance_vs_degree("default", degree, "node degree")
-ggsave_publication("s1_importance_vs_degree_default",
-                   width = 18, height = 3, type = "png")
 
-plot_importance_vs_degree("correlated", degree, "node degree")
-ggsave_publication("s1_importance_vs_degree_correlated",
-                   width = 18, height = 3, type = "png")
+plot_params <- tribble(
+  ~experiment, ~measure,
+  "default",    "degree",
+  "correlated", "degree",
+  "scrambled",  "degree",
 
-plot_importance_vs_degree("scrambled_labels_balanced", degree, "node degree")
-ggsave_publication("s1_importance_vs_degree_scrambled",
-                   width = 18, height = 3, type = "png")
+  "default",    "indegree",
+  "correlated", "indegree",
+  "scrambled",  "indegree",
+
+  "default",    "outdegree",
+  "correlated", "outdegree",
+  "scrambled",  "outdegree",
+
+  "default",    "reachability",
+  "correlated", "reachability",
+  "scrambled",  "reachability",
+
+  "default",    "betweenness",
+  "correlated", "betweenness",
+  "scrambled",  "betweenness"
+)
+
+pwalk(
+  plot_params %>% slice(),
+  function(experiment, measure) {
+    plot_importance_vs_degree(experiment, measure)
+    ggsave_publication(
+      str_glue("s1_importance_vs_{measure}_{experiment}"),
+      width = 18,
+      height = 3,
+      type = "png"
+    )
+  }
+)
 
 
-plot_importance_vs_degree("default", reachability, "reachability")
-ggsave_publication("s1_importance_vs_reachability_default",
-                   width = 18, height = 3, type = "png")
+## Correlations ----
 
-plot_importance_vs_degree("correlated", reachability, "reachability")
-ggsave_publication("s1_importance_vs_reachability_correlated",
-                   width = 18, height = 3, type = "png")
+cor_data <-
+  node_importance %>%
+  filter(!modified) %>%
+  left_join(
+    graph_stats %>%
+      separate(reactome_id, into = c("reactome_id", "layer"), sep = "\\:") %>%
+      mutate(layer = as.integer(layer) + 1),
+    by = c("reactome_id", "layer")
+  ) %>%
+  group_split(experiment, seed, layer) %>%
+  map_dfr(
+    function(df) {
+      bind_cols(
+        df %>% distinct(experiment, seed, layer),
+        cor(df$coef, df %>% select(indegree:betweenness)) %>%
+          as_tibble()
+      )
+    }
+  )
 
-plot_importance_vs_degree("scrambled_labels_balanced", reachability, "reachability")
-ggsave_publication("s1_importance_vs_reachability_scrambled",
-                   width = 18, height = 3, type = "png")
+cor_data %>%
+  pivot_longer(
+    indegree:betweenness,
+    names_to = "measure",
+    values_to = "correlation"
+  ) %>%
+  mutate(
+    layer = factor(layer),
+    experiment = fct_relevel(experiment, "default"),
+    measure = fct_relevel(measure, "degree", "indegree",
+                          "outdegree", "reachability")
 
-
-plot_importance_vs_degree("default", betweenness, "betweenness")
-ggsave_publication("s1_importance_vs_betweenness_default",
-                   width = 18, height = 3, type = "png")
-
-plot_importance_vs_degree("correlated", betweenness, "betweenness")
-ggsave_publication("s1_importance_vs_betweenness_correlated",
-                   width = 18, height = 3, type = "png")
-
-plot_importance_vs_degree("scrambled_labels_balanced", betweenness, "betweenness")
-ggsave_publication("s1_importance_vs_betweenness_scrambled",
-                   width = 18, height = 3, type = "png")
-
-
-graph_stats %>%
-  filter(reactome_id %>% str_ends("6")) %>%
-  count(reachability)
-
+  ) %>%
+  ggplot(aes(experiment, correlation, fill = experiment)) +
+  geom_boxplot(
+    outlier.size = .5,
+    outlier.alpha = .25,
+    key_glyph = "rect",
+    size = BASE_LINE_SIZE,
+    show.legend = FALSE
+  ) +
+  scale_fill_manual(
+    values = EXPERIMENT_COLORS,
+    guide = guide_legend()
+  ) +
+  # facet_wrap(vars(measure), nrow = 1) +
+  facet_grid(vars(layer), vars(measure)) +
+  theme_pub() +
+  theme(
+    legend.position = "bottom",
+    legend.key.height = unit(2, "mm"),
+    legend.key.width = unit(2, "mm"),
+    axis.text.x = element_text(angle = 90, vjust = .5)
+  )
+# ggsave_publication("S1_correlations", width = 18, height = 5)
+ggsave_publication("S1_correlations", width = 8, height = 12)

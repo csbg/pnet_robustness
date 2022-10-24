@@ -497,6 +497,7 @@ walk(
 # Figure S1 ---------------------------------------------------------------
 
 plot_importance_vs_degree <- function(experiment, measure) {
+  print(str_glue("{experiment}, {measure}"))
   plot_data <-
     node_importance %>%
     filter(experiment == {{experiment}}, !modified) %>%
@@ -560,7 +561,7 @@ plot_params <- tribble(
 )
 
 pwalk(
-  plot_params %>% slice(),
+  plot_params,
   function(experiment, measure) {
     plot_importance_vs_degree(experiment, measure)
     ggsave_publication(
@@ -631,3 +632,109 @@ cor_data %>%
   )
 # ggsave_publication("S1_correlations", width = 18, height = 5)
 ggsave_publication("S1_correlations", width = 8, height = 12)
+
+
+
+# New ideas ---------------------------------------------------------------
+
+## Heatmap ----
+
+p <-
+  cor_data %>%
+  group_by(experiment) %>%
+  summarise(across(indegree:betweenness, mean, na.rm = TRUE)) %>%
+  column_to_rownames("experiment") %>%
+  as.matrix() %>%
+  t() %>%
+  Heatmap(
+    col = circlize::colorRamp2(
+      seq(min(.), max(.), length.out = 9),
+      color("davos", reverse = TRUE)(9),
+    ),
+    name = "correlation of\nnode importance\nscores vs\nnetwork measures",
+    heatmap_legend_param = list(
+      at = round(c(min(.), max(.)), 2),
+      border = FALSE,
+      grid_width = unit(2, "mm"),
+      labels_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+      legend_height = unit(15, "mm"),
+      title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT)
+    ),
+
+    row_dend_gp = gpar(lwd = 0.5),
+    row_title = "network measure",
+    row_title_side = "right",
+    row_title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+    row_names_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+
+    column_dend_gp = gpar(lwd = 0.5),
+    column_title = "experiment",
+    column_title_side = "bottom",
+    column_title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+    column_names_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+
+    width = unit(15, "mm"),
+    height = unit(25, "mm"),
+    border = FALSE,
+  )
+ggsave_publication("z_corr_heatmap", plot = p,
+                   width = 6, height = 6, type = "png")
+
+
+
+## Correlation dotplots ----
+
+plot_importance_vs_degree <- function(experiment) {
+  plot_data <-
+    node_importance %>%
+    filter(experiment == {{experiment}}, !modified) %>%
+    group_by(layer, reactome_id) %>%
+    summarise(coef = mean(coef)) %>%
+    left_join(
+      graph_stats %>%
+        separate(reactome_id, into = c("reactome_id", "layer"), sep = "\\:") %>%
+        mutate(layer = as.integer(layer) + 1),
+      by = c("reactome_id", "layer")
+    ) %>%
+    mutate(across(indegree:betweenness, ~.x / max(.x))) %>%
+    pivot_longer(indegree:betweenness, names_to = "measure")
+
+  ggplot(plot_data, aes(value, coef)) +
+    geom_point(size = 1, alpha = .25) +
+    geom_smooth(method = "lm", size = BASE_LINE_SIZE) +
+    scale_x_continuous("relative value", limits = 0:1, breaks = 0:1) +
+    ylab("node importance") +
+    facet_grid(vars(measure), vars(layer), scales = "free_y") +
+    theme_pub() +
+    theme(panel.grid = element_blank())
+}
+
+plot_importance_vs_degree("default")
+ggsave_publication("z_importance_vs_all_default", width = 18, height = 16, type = "png")
+
+plot_importance_vs_degree("correlated")
+ggsave_publication("z_importance_vs_all_correlated", width = 18, height = 16, type = "png")
+
+plot_importance_vs_degree("scrambled")
+ggsave_publication("z_importance_vs_all_scrambled", width = 18, height = 16, type = "png")
+
+
+
+# cor_data <-
+#   node_importance %>%
+#   filter(!modified) %>%
+#   left_join(
+#     graph_stats %>%
+#       separate(reactome_id, into = c("reactome_id", "layer"), sep = "\\:") %>%
+#       mutate(layer = as.integer(layer) + 1),
+#     by = c("reactome_id", "layer")
+#   ) %>%
+#   group_by(experiment, layer, seed) %>%
+#   mutate(across(c(coef, indegree:betweenness), rank)) %>%
+#   group_by(experiment, reactome_id) %>%
+#   summarise(across(c(coef, indegree:betweenness), mean)) %>%
+#   {.}
+#
+# cor_data %>%
+#   ggplot(aes(betweenness, coef)) +
+#   geom_point()

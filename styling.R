@@ -5,26 +5,33 @@ library(fs)
 
 # Common definitions ------------------------------------------------------
 
+EXPERIMENT_NAMES <- c(
+  "original setup" = "default",
+  "deterministic inputs" = "correlated",
+  "shuffled labels" = "scrambled"
+)
+
 EXPERIMENT_COLORS <- c(
-  "default" = "gray50",
-  "correlated" = "#3182bd",
-  "scrambled" = "#e69f00"
+  "original setup" = "gray50",
+  "deterministic inputs" = "#3182bd",
+  "shuffled labels" = "#e69f00"
 )
 
 ORIGINAL_SEED_COLOR <- "red"
+
 
 
 # ggplot functions --------------------------------------------------------
 
 BASE_TEXT_SIZE_MM = 1.76  # mm, corresponds to 5 pt, use in geom_text()
 BASE_TEXT_SIZE_PT = 5 # pt, use in theme()
-BASE_LINE_SIZE = 0.25 # pt
+BASE_LINEWIDTH = 0.25 # pt
 BASE_BOXPLOT_SIZE = 0.5
 
 #' Common theme for figures in the publication.
 #'
 #' This theme bases upon `theme_bw()` and ensures
-#' - common line widths of `BASE_LINE_SIZE`
+#' - common line widths of `BASE_LINEWIDTH`
 #' - common text sizes of `BASE_TEXT_SIZE_PT`
 #' - a uniform plot margin of 1 mm
 #' - a medium strip text, an empty strip background, and
@@ -38,13 +45,13 @@ theme_pub <- function(rotate_x_labels = FALSE, ...){
   res <-
     theme_bw(...) +
     theme(
-      line = element_line(size = BASE_LINE_SIZE),
+      line = element_line(size = BASE_LINEWIDTH),
       axis.text = element_text(color = "black", size = BASE_TEXT_SIZE_PT),
       axis.title = element_text(color = "black", size = BASE_TEXT_SIZE_PT),
       legend.background = element_blank(),
       legend.text = element_text(color = "black", size = BASE_TEXT_SIZE_PT),
       legend.title = element_text(size = BASE_TEXT_SIZE_PT),
-      panel.border = element_rect(size = BASE_LINE_SIZE * 2),
+      panel.border = element_rect(size = BASE_LINEWIDTH * 2),
       plot.margin = unit(c(1, 1, 1, 1), "mm"),
       strip.background = element_blank(),
       strip.text = element_text(
@@ -123,4 +130,10 @@ ggsave_publication <- function(filename,
     print(plot)
     dev.off()
   }
+}
+
+# shorthand for adding a facet title as secondary axis
+# use like scale_x_continuous (sec.axis = facet_title("..."))
+facet_title <- function(name) {
+  dup_axis(name = name, breaks = NULL, labels = NULL)
 }

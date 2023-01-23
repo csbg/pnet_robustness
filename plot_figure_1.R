@@ -804,3 +804,28 @@ graph_stats %>%
 
 ggsave_publication("S3_reachability_vs_betweenness",
                    height = 4, width = 18, type = "png")
+
+
+
+# Values in main text -----------------------------------------------------
+
+## Importance score correlation ----
+
+node_importance %>%
+  unite(experiment, seed, col = "exp_seed", sep = "+") %>%
+  select(exp_seed, reactome_id, coef_combined) %>%
+  pivot_wider(names_from = exp_seed, values_from = coef_combined) %>%
+  select(!reactome_id) %>%
+  cor() %>%
+  magrittr::inset(!lower.tri(.), NA) %>%
+  as_tibble(rownames = "from") %>%
+  pivot_longer(
+    !from,
+    names_to = c("to_exp", "to_seed"),
+    names_sep = "\\+",
+    values_to = "corr"
+  ) %>%
+  separate(from, into = c("from_exp", "from_seed"), sep = "\\+") %>%
+  filter(!is.na(corr)) %>%
+  group_by(from_exp, to_exp) %>%
+  summarise(mean_corr = mean(corr))

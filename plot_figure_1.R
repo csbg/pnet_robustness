@@ -127,7 +127,7 @@ graph_stats <-
 
 # Figure 1 ----------------------------------------------------------------
 
-## c ----
+## b ----
 
 plot_roc <- function(experiment) {
   pred <-
@@ -160,10 +160,10 @@ plot_roc <- function(experiment) {
 }
 
 plot_roc("original setup")
-ggsave_publication("1c_roc", width = 4, height = 4)
+ggsave_publication("1b_roc", width = 4, height = 4)
 
 
-## d ----
+## c ----
 
 plot_robustness <- function(top_nodes = 10) {
   node_importance <-
@@ -212,10 +212,10 @@ plot_robustness <- function(top_nodes = 10) {
 }
 
 plot_robustness()
-ggsave_publication("1d_robustness", width = 18, height = 4)
+ggsave_publication("1c_robustness", width = 18, height = 4)
 
 
-## e ----
+## d ----
 
 plot_changes <- function(seed = "28_28", top_nodes = c(4, 43)) {
   plot_data <-
@@ -267,7 +267,7 @@ plot_changes <- function(seed = "28_28", top_nodes = c(4, 43)) {
 }
 
 plot_changes()
-ggsave_publication("1e_changes", width = 8, height = 4)
+ggsave_publication("1d_changes", width = 8, height = 4)
 
 
 
@@ -764,3 +764,4 @@ node_importance %>%
   filter(!is.na(corr)) %>%
   group_by(from_exp, to_exp) %>%
   summarise(mean_corr = mean(corr))
+

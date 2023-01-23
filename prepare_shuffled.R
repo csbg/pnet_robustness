@@ -14,7 +14,7 @@ restore_input_files()
 # process command line arguments
 args <- commandArgs(TRUE)
 if (length(args) == 0L) {
-  keep_class_frequency <- TRUE
+  keep_class_frequency <- FALSE
   seed <- 0
 } else {
   keep_class_frequency <- as.logical(args[1])

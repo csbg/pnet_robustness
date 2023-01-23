@@ -1,8 +1,6 @@
 #!/bin/bash
 
-experiment_name=${1:-default}
-
-results_dir="data/$experiment_name"
+results_dir="data/$1"
 mkdir -p $results_dir
 
 echo "Running PNET ..."

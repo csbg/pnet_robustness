@@ -6,9 +6,9 @@ library(fs)
 # Common definitions ------------------------------------------------------
 
 EXPERIMENT_NAMES <- c(
-  "original setup" = "default",
-  "deterministic inputs" = "correlated",
-  "shuffled labels" = "scrambled"
+  "original setup" = "original",
+  "deterministic inputs" = "deterministic",
+  "shuffled labels" = "shuffled"
 )
 
 EXPERIMENT_COLORS <- c(
@@ -88,7 +88,7 @@ ggsave_publication <- function(filename,
                                type = "pdf",
                                dpi = 1200,
                                ...) {
-  filename <- str_glue("plots/final/{filename}.{type}")
+  filename <- str_glue("plots/{filename}.{type}")
   filename %>%
     path_dir() %>%
     dir_create()

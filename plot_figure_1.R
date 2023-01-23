@@ -661,71 +661,6 @@ ggsave_publication("5b_reachability_vs_importance", width = 8, height = 4)
 
 # Figure S2 ---------------------------------------------------------------
 
-plot_importance_vs_measure <- function(measure) {
-  plot_data <-
-    node_importance %>%
-    group_by(experiment, layer, reactome_id) %>%
-    summarise(coef_combined = mean(coef_combined)) %>%
-    left_join(graph_stats, by = c("reactome_id", "layer")) %>%
-    mutate(
-      measure = normalize({{measure}}),
-      coef_combined = normalize(coef_combined)
-    )
-
-  x_label <- str_glue("{rlang::as_name(rlang::enquo(measure))} (relative)")
-  y_label <- "mean node importance (relative)"
-
-  ggplot(plot_data, aes(measure, coef_combined, color = experiment)) +
-    geom_point(size = .5, alpha = .25, shape = 16, show.legend = FALSE) +
-    geom_smooth(
-      method = "lm",
-      se = FALSE,
-      show.legend = FALSE,
-      linewidth = BASE_LINEWIDTH
-    ) +
-    scale_x_continuous(
-      x_label,
-      limits = 0:1,
-      breaks = 0:1,
-      sec.axis = facet_title("experiment")
-    ) +
-    scale_y_continuous(
-      y_label,
-      limits = 0:1,
-      breaks = 0:1,
-      sec.axis = facet_title("layer")
-    ) +
-    scale_color_manual(values = EXPERIMENT_COLORS) +
-    coord_fixed() +
-    facet_grid(vars(layer), vars(experiment)) +
-    theme_pub() +
-    theme(panel.grid = element_blank())
-}
-
-plot_importance_vs_measure(indegree)
-ggsave_publication("S2a_indegree",
-                   width = 7, height = 12, type = "png")
-
-plot_importance_vs_measure(outdegree)
-ggsave_publication("S2b_outdegree",
-                   width = 7, height = 12, type = "png")
-
-plot_importance_vs_measure(degree)
-ggsave_publication("S2c_degree",
-                   width = 7, height = 12, type = "png")
-
-plot_importance_vs_measure(reachability)
-ggsave_publication("S2d_reachability",
-                   width = 7, height = 12, type = "png")
-
-plot_importance_vs_measure(betweenness)
-ggsave_publication("S2e_betweenness",
-                   width = 7, height = 12, type = "png")
-
-
-
-## alternative version ----
-
 label_middle <- function(labels) {
   middle_index <-
     tibble(labels = labels) %>%
@@ -786,7 +721,7 @@ plot_importance_vs_measure_alt <- function() {
 }
 
 plot_importance_vs_measure_alt()
-ggsave_publication("S2_all",
+ggsave_publication("S2_importance_vs_measure",
                    width = 28, height = 12, type = "png")
 
 

@@ -671,7 +671,7 @@ label_middle <- function(labels) {
   replace(character(length(labels)), middle_index, labels[middle_index])
 }
 
-plot_importance_vs_measure_alt <- function() {
+plot_importance_vs_measure <- function() {
   plot_data <-
     node_importance %>%
     group_by(experiment, layer, reactome_id) %>%
@@ -686,7 +686,7 @@ plot_importance_vs_measure_alt <- function() {
     )
 
   ggplot(plot_data, aes(value, coef_combined, color = experiment)) +
-    geom_point(size = .5, alpha = .25, shape = 16, show.legend = FALSE) +
+    geom_point(size = .1, alpha = 1, shape = 16, show.legend = FALSE) +
     geom_smooth(
       method = "lm",
       se = FALSE,
@@ -720,7 +720,7 @@ plot_importance_vs_measure_alt <- function() {
     )
 }
 
-plot_importance_vs_measure_alt()
+plot_importance_vs_measure()
 ggsave_publication("S2_importance_vs_measure",
                    width = 28, height = 12, type = "png")
 

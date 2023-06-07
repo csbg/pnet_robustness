@@ -1,5 +1,6 @@
 library(tidyverse)
 library(fs)
+library(ComplexHeatmap)
 
 
 
@@ -8,13 +9,15 @@ library(fs)
 EXPERIMENT_NAMES <- c(
   "original setup" = "original",
   "deterministic inputs" = "deterministic",
-  "shuffled labels" = "shuffled"
+  "shuffled labels" = "shuffled",
+  "MSK-IMPACT" = "mskimpact"
 )
 
 EXPERIMENT_COLORS <- c(
   "original setup" = "gray50",
   "deterministic inputs" = "#3182bd",
-  "shuffled labels" = "#e69f00"
+  "shuffled labels" = "#e69f00",
+  "MSK-IMPACT" = "#66a61e"
 )
 
 ORIGINAL_SEED_COLOR <- "red"
@@ -137,3 +140,23 @@ ggsave_publication <- function(filename,
 facet_title <- function(name) {
   dup_axis(name = name, breaks = NULL, labels = NULL)
 }
+
+
+
+# Heatmap appearance ------------------------------------------------------
+
+ht_opt(
+  simple_anno_size = unit(1.5, "mm"),
+  COLUMN_ANNO_PADDING = unit(1, "pt"),
+  DENDROGRAM_PADDING = unit(1, "pt"),
+  HEATMAP_LEGEND_PADDING = unit(1, "mm"),
+  ROW_ANNO_PADDING = unit(1, "pt"),
+  TITLE_PADDING = unit(2, "mm"),
+  heatmap_row_title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+  heatmap_row_names_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+  heatmap_column_title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+  heatmap_column_names_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+  legend_labels_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+  legend_title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+  legend_border = FALSE
+)

@@ -6,15 +6,6 @@ library(khroma)
 library(igraph)
 source("styling.R")
 
-ht_opt(
-  simple_anno_size = unit(1.5, "mm"),
-  COLUMN_ANNO_PADDING = unit(1, "pt"),
-  DENDROGRAM_PADDING = unit(1, "pt"),
-  HEATMAP_LEGEND_PADDING = unit(1, "mm"),
-  ROW_ANNO_PADDING = unit(1, "pt"),
-  TITLE_PADDING = unit(2, "mm")
-)
-
 
 
 # Load data ---------------------------------------------------------------

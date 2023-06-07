@@ -11,6 +11,7 @@
 - `pnet_data`: patches and data files required for setting up PNET
 - `pnet_prostate_data`: clone of the PNET repository; can be deleted
 - `renv`: R environment data
+- `scripts`: R scripts
 
 
 
@@ -52,7 +53,7 @@ Within each experiment, results from each run are saved in a subfolder indicatin
 Run PNET with the original setup as described in the publication.
 
 ```bash
-Rscript prepare_original.R
+Rscript scripts/prepare_original.R
 ./run_pnet.sh original
 ```
 
@@ -62,7 +63,7 @@ Rscript prepare_original.R
 Input data is modified so that presence of mutation and copy number amplification is perfectly correlated with class label 1 (copy number deletion is always 0).
 
 ```bash
-Rscript prepare_deterministic.R
+Rscript scripts/prepare_deterministic.R
 ./run_pnet.sh deterministic
 ```
 
@@ -72,7 +73,7 @@ Rscript prepare_deterministic.R
 Shuffle training/test labels using uniform class frequencies.
 
 ```bash
-Rscript prepare_shuffled.R
+Rscript scripts/prepare_shuffled.R
 ./run_pnet.sh shuffled
 ```
 

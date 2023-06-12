@@ -14,7 +14,7 @@ original_seed <- "234_20080808"
 
 reactome_names <-
   read_tsv(
-    "pnet_prostate_paper/_database/pathways/Reactome/ReactomePathways.txt",
+    "pnet_data/ReactomePathways.txt",
     col_names = c("reactome_id", "node", "species")) %>%
   filter(species == "Homo sapiens") %>%
   select(!species)
@@ -73,7 +73,7 @@ pnet_edges <-
   map_dfr(
     0:6,
     function(layer) {
-      df <- read_csv(str_glue("pnet_prostate_paper/analysis/extracted/link_weights_{layer}.csv"))
+      df <- read_csv(str_glue("data/original/234_20080808/link_weights_{layer}.csv"))
       if (layer == 0) {
         colnames(df)[1] <- "to"
         colnames(df)[2] <- "from"

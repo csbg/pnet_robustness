@@ -1,6 +1,6 @@
 library(tidyverse)
 library(fs)
-source("common_functions.R")
+source("scripts/common_functions.R")
 
 
 restore_input_files()

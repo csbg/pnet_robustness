@@ -4,7 +4,7 @@ library(yardstick)
 library(ComplexHeatmap)
 library(khroma)
 library(igraph)
-source("styling.R")
+source("scripts/styling.R")
 
 
 

@@ -29,7 +29,7 @@ docker pull ghcr.io/csbg/pnet-container
 
 Generally, each experiment comprises two steps:
 1. Prepare PNET input data via `prepare_[experiment name].R`.
-2. Run PNET (in the Docker container) via `run_pnet.sh [experiment name]`.
+2. Run PNET via Docker, `run_pnet_docker.sh [experiment name]`.
 
 Within each experiment, results from each run are saved in a subfolder indicating the two random seeds used (e.g., `0_0`). `common_functions.R` is required by the `prepare_*.R` scripts.
 
@@ -40,7 +40,7 @@ Run PNET with the original setup as described in the publication.
 
 ```bash
 Rscript scripts/prepare_original.R
-./run_pnet.sh original
+./run_pnet_docker.sh original
 ```
 
 
@@ -50,7 +50,7 @@ Input data is modified so that presence of mutation and copy number amplificatio
 
 ```bash
 Rscript scripts/prepare_deterministic.R
-./run_pnet.sh deterministic
+./run_pnet_docker.sh deterministic
 ```
 
 
@@ -60,7 +60,7 @@ Shuffle training/test labels using uniform class frequencies.
 
 ```bash
 Rscript scripts/prepare_shuffled.R
-./run_pnet.sh shuffled
+./run_pnet_docker.sh shuffled
 ```
 
 

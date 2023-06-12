@@ -22,7 +22,7 @@ if (length(args) == 0L) {
 }
 
 # scramble labels
-labels <- read_csv(LABEL_FILE_ORIGINAL)
+labels <- read_csv(ORIGINAL_FILES$labels)
 
 if (keep_class_frequency) {
   label_1_frq <- mean(labels$response)
@@ -40,4 +40,4 @@ scrambled_response <- sample(
 
 labels %>%
   mutate(response = scrambled_response) %>%
-  write_csv(LABEL_FILE)
+  write_csv(MOUNTED_FILES$labels)

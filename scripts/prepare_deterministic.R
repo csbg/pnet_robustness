@@ -7,29 +7,25 @@ restore_input_files()
 
 
 samples_metastatic <-
-  read_csv(LABEL_FILE_ORIGINAL, col_types = "ci") %>%
+  read_csv(ORIGINAL_FILES$labels, col_types = "ci") %>%
   filter(response == 1L) %>%
   pull(id)
 
 
-mutations <- read_csv(MUT_FILE_ORIGINAL)
+mutations <- read_csv(ORIGINAL_FILES$mutations)
 
 mutations %>%
   mutate(
     across(!1, ~as.integer(Tumor_Sample_Barcode %in% samples_metastatic))
   ) %>%
-  write_csv(MUT_FILE)
+  write_csv(MOUNTED_FILES$mutations)
 
 
 
-cnvs <- read_csv(CNV_FILE_ORIGINAL)
+cnvs <-
+  read_csv(ORIGINAL_FILES$cnvs) %>%
+  mutate(across(!1, ~as.integer(...1 %in% samples_metastatic) * 2))
 
-c("", colnames(cnvs)[-1]) %>%
-  str_c(collapse = ",") %>%
-  write_lines(CNV_FILE)
+colnames(cnvs)[1] <- ""
 
-cnvs %>%
-  mutate(
-    across(!1, ~as.integer(X1 %in% samples_metastatic) * 2)
-  ) %>%
-  write_csv(CNV_FILE, append = TRUE)
+cnvs %>% write_csv(MOUNTED_FILES$cnvs)

@@ -29,7 +29,7 @@ docker pull ghcr.io/csbg/pnet-container
 
 Generally, each experiment comprises two steps:
 1. Prepare PNET input data via `prepare_[experiment name].R`.
-2. Run PNET via Docker, `run_pnet_docker.sh [experiment name]`.
+2. Run PNET via Docker unsing the provided bash script `run_pnet_docker.sh [experiment name]`.
 
 Within each experiment, results from each run are saved in a subfolder indicating the two random seeds used (e.g., `0_0`). `common_functions.R` is required by the `prepare_*.R` scripts.
 
@@ -61,6 +61,20 @@ Shuffle training/test labels using uniform class frequencies.
 ```bash
 Rscript scripts/prepare_shuffled.R
 ./run_pnet_docker.sh shuffled
+```
+
+### MSK-IMPACT 2017
+
+literature:
+- https://www.nature.com/articles/s41467-021-27017-w
+- https://www.nature.com/articles/nm.4333
+
+Download from [https://cbioportal-datahub.s3.amazonaws.com/msk_impact_2017.tar.gz].
+
+
+```bash
+Rscript scripts/prepare_mskimpact.R
+./run_pnet_docker.sh mskimpact
 ```
 
 

@@ -156,10 +156,10 @@ ggsave_publication("1b_roc", width = 4, height = 4)
 
 ## c ----
 
-plot_robustness <- function(top_nodes = 10) {
+plot_robustness <- function(top_nodes = 10, experiment = "original setup") {
   node_importance <-
     node_importance %>%
-    filter(experiment == "original setup")
+    filter(experiment == {{experiment}})
 
   top_nodes_per_layer <-
     node_importance %>%

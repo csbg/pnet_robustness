@@ -1,12 +1,12 @@
 # common functions and variables
 
 MOUNTED_FILES <- list(
-  mutations = "pnet_data/mutations.csv",
-  cnvs = "pnet_data/cnvs.csv",
-  labels = "pnet_data/labels.csv",
-  training_set = "pnet_data/training_set.csv",
-  test_set = "pnet_data/test_set.csv",
-  validation_set = "pnet_data/validation_set.csv"
+  mutations = "pnet_data/mounted/mutations.csv",
+  cnvs = "pnet_data/mounted/cnvs.csv",
+  labels = "pnet_data/mounted/labels.csv",
+  training_set = "pnet_data/mounted/training_set.csv",
+  test_set = "pnet_data/mounted/test_set.csv",
+  validation_set = "pnet_data/mounted/validation_set.csv"
 )
 
 ORIGINAL_FILES <- list(
@@ -19,6 +19,7 @@ ORIGINAL_FILES <- list(
 )
 
 restore_input_files <- function() {
+  dir_create("pnet_data/mounted")
   walk2(
     ORIGINAL_FILES,
     MOUNTED_FILES,

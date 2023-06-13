@@ -10,13 +10,12 @@
 - `literature`: relevant publications
 - `plots`: generated plots
 - `pnet_data`: patches and data files required for setting up PNET
-- `pnet_prostate_data`: clone of the PNET repository; can be deleted
 - `renv`: R environment data
 - `scripts`: R scripts
 
 
 
-## Setup PNET
+## Preparation
 
 Download the provided Docker container from the GitHub Container registry:
 
@@ -24,14 +23,26 @@ Download the provided Docker container from the GitHub Container registry:
 docker pull ghcr.io/csbg/pnet-container
 ```
 
+Download the [MSK-IMPACT 2017](https://www.nature.com/articles/nm.4333) dataset:
+
+```bash
+wget https://cbioportal-datahub.s3.amazonaws.com/msk_impact_2017.tar.gz
+mkdir -p pnet_data/msk_impact_2017
+tar xzf msk_impact_2017.tar.gz -C pnet_data/msk_impact_2017
+```
+
 
 ## Run experiments
 
-Generally, each experiment comprises two steps:
-1. Prepare PNET input data via `prepare_[experiment name].R`.
-2. Run PNET via Docker unsing the provided bash script `run_pnet_docker.sh [experiment name]`.
+Generally, each experiment comprises the following steps:
 
-Within each experiment, results from each run are saved in a subfolder indicating the two random seeds used (e.g., `0_0`). `common_functions.R` is required by the `prepare_*.R` scripts.
+1. Load PNET input data via `load_data_[dataset].R`.
+2. Optionally, modify input data via `modify_data_[technique].R`.
+3. Run PNET via Docker using the provided bash script `run_pnet_docker.sh [experiment]`.
+
+Within each experiment, results from each run are saved in a subfolder indicating the two random seeds used (e.g., `0_0`).
+
+`utils.R` is required by all data preparation scripts.
 
 
 ### Original setup
@@ -39,8 +50,8 @@ Within each experiment, results from each run are saved in a subfolder indicatin
 Run PNET with the original setup as described in the publication.
 
 ```bash
-Rscript scripts/prepare_original.R
-./run_pnet_docker.sh original
+Rscript scripts/load_data_original.R
+./run_pnet_docker.sh pnet_original
 ```
 
 
@@ -49,8 +60,9 @@ Rscript scripts/prepare_original.R
 Input data is modified so that presence of mutation and copy number amplification is perfectly correlated with class label 1 (copy number deletion is always 0).
 
 ```bash
-Rscript scripts/prepare_deterministic.R
-./run_pnet_docker.sh deterministic
+Rscript scripts/load_data_original.R
+Rscript scripts/modify_data_deterministic.R
+./run_pnet_docker.sh pnet_deterministic
 ```
 
 
@@ -59,22 +71,39 @@ Rscript scripts/prepare_deterministic.R
 Shuffle training/test labels using uniform class frequencies.
 
 ```bash
-Rscript scripts/prepare_shuffled.R
-./run_pnet_docker.sh shuffled
+Rscript scripts/load_data_original.R
+Rscript scripts/modify_data_shuffled.R
+./run_pnet_docker.sh pnet_shuffled
 ```
+
 
 ### MSK-IMPACT 2017
 
-literature:
-- https://www.nature.com/articles/s41467-021-27017-w
-- https://www.nature.com/articles/nm.4333
+https://www.nature.com/articles/s41467-021-27017-w
 
-Download from [https://cbioportal-datahub.s3.amazonaws.com/msk_impact_2017.tar.gz].
+Most frequent cancer types:
+
+1. Non-Small Cell Lung Cancer (1668)
+2. Breast Cancer (1337)
+3. Colorectal Cancer (1007)
+4. Prostate Cancer (717)
 
 
 ```bash
-Rscript scripts/prepare_mskimpact.R
-./run_pnet_docker.sh mskimpact
+Rscript scripts/load_data_mskimpact.R
+./run_pnet_docker.sh mskimpact_all
+
+Rscript scripts/load_data_mskimpact.R "Non-Small Cell Lung Cancer"
+./run_pnet_docker.sh mskimpact_nsclc
+
+Rscript scripts/load_data_mskimpact.R "Non-Small Cell Lung Cancer"
+Rscript scripts/modify_data_shuffled.R
+./run_pnet_docker.sh mskimpact_nsclc_shuffled
+
+Rscript scripts/load_data_mskimpact.R "Non-Small Cell Lung Cancer"
+Rscript scripts/modify_data_deterministic.R
+./run_pnet_docker.sh mskimpact_nsclc_deterministic
+
 ```
 
 

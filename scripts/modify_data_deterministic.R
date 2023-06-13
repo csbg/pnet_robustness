@@ -1,18 +1,17 @@
+# make mutation and CNV data deterministic
+
 library(tidyverse)
 library(fs)
-source("scripts/common_functions.R")
-
-
-restore_input_files()
+source("scripts/utils.R")
 
 
 samples_metastatic <-
-  read_csv(ORIGINAL_FILES$labels, col_types = "ci") %>%
+  read_csv(MOUNTED_FILES$labels, col_types = "ci") %>%
   filter(response == 1L) %>%
   pull(id)
 
 
-mutations <- read_csv(ORIGINAL_FILES$mutations)
+mutations <- read_csv(MOUNTED_FILES$mutations)
 
 mutations %>%
   mutate(
@@ -23,7 +22,7 @@ mutations %>%
 
 
 cnvs <-
-  read_csv(ORIGINAL_FILES$cnvs) %>%
+  read_csv(MOUNTED_FILES$cnvs) %>%
   mutate(across(!1, ~as.integer(...1 %in% samples_metastatic) * 2))
 
 colnames(cnvs)[1] <- ""

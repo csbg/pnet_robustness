@@ -1,21 +1,46 @@
-# load data from the MSK-IMPACT dataset
+# load data from the MSK-IMPACT 2017 dataset
 
 library(tidyverse)
 library(fs)
-source("scripts/common_functions.R")
+source("scripts/utils.R")
+
+Sys.setenv(VROOM_CONNECTION_SIZE = 500000L)
 
 
 
 # Load data ---------------------------------------------------------------
 
-# labels for 10,945 samples
+# process command line arguments (1st argument = selected cancer type)
+args <- commandArgs(TRUE)
+if (length(args) == 0L) {
+  cancer_type <- NULL
+} else {
+  cancer_type <- args[1]
+}
+# for testing
+# cancer_type <- "Non-Small Cell Lung Cancer"
+
+# labels; possibly subset the overall 10,945 samples to a certain cancer type
+label_data <- read_tsv(
+  "pnet_data/msk_impact_2017/data_clinical_sample.txt",
+  skip = 4
+)
+
+if (!is.null(cancer_type)) {
+  label_data <-
+    label_data %>%
+    filter(CANCER_TYPE == cancer_type)
+}
+
 label_data <-
-  read_tsv("pnet_data/msk_impact_2017/data_clinical_sample.txt", skip = 4) %>%
+  label_data %>%
   mutate(
     .keep = "none",
     id = SAMPLE_ID,
     response = if_else(SAMPLE_TYPE == "Primary", 0L, 1L),
   )
+
+
 
 # mutation data
 mut_data <-
@@ -24,13 +49,14 @@ mut_data <-
     .by = c(Tumor_Sample_Barcode, Hugo_Symbol),
     mut = n()
   ) %>%
+  filter(Tumor_Sample_Barcode %in% label_data$id) %>%
   pivot_wider(names_from = Hugo_Symbol, values_from = mut)
 
 # cnv data
-Sys.setenv(VROOM_CONNECTION_SIZE = 500000L)
 cnv_data <-
   read_tsv("pnet_data/msk_impact_2017/data_cna.txt") %>%
   pivot_longer(!Hugo_Symbol, names_to = "sample", values_to = "cna") %>%
+  filter(sample %in% label_data$id) %>%
   pivot_wider(names_from = Hugo_Symbol, values_from = cna)
 
 colnames(cnv_data)[1] <- ""
@@ -53,11 +79,6 @@ valid_data <- label_data[valid_rows, ]
 
 # Save data ---------------------------------------------------------------
 
-label_data %>% write_csv(MOUNTED_FILES$labels)
-mut_data %>% write_csv(MOUNTED_FILES$mutations)
-cnv_data %>% write_csv(MOUNTED_FILES$cnvs)
-
-
 write_csv_with_row_index <- function(df, file) {
   df <-
     df %>%
@@ -66,6 +87,16 @@ write_csv_with_row_index <- function(df, file) {
   write_csv(df, file)
 }
 
+dir_create("pnet_data/mounted")
+
+label_data %>% write_csv(MOUNTED_FILES$labels)
+mut_data %>% write_csv(MOUNTED_FILES$mutations)
+cnv_data %>% write_csv(MOUNTED_FILES$cnvs)
+
 train_data %>% write_csv_with_row_index(MOUNTED_FILES$training_set)
 test_data %>% write_csv_with_row_index(MOUNTED_FILES$test_set)
 valid_data %>% write_csv_with_row_index(MOUNTED_FILES$validation_set)
+
+info("Loaded MSK-IMPACT 2017 dataset, ",
+     "cancer type '{cancer_type}' comprising ",
+     "{nrow(label_data)} samples")

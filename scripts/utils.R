@@ -1,5 +1,7 @@
-# common functions and variables
 
+# Constants ---------------------------------------------------------------
+
+# files that will be mounted into the PNET Docker container
 MOUNTED_FILES <- list(
   mutations = "pnet_data/mounted/mutations.csv",
   cnvs = "pnet_data/mounted/cnvs.csv",
@@ -9,6 +11,7 @@ MOUNTED_FILES <- list(
   validation_set = "pnet_data/mounted/validation_set.csv"
 )
 
+# original PNET input files from _database.zip
 ORIGINAL_FILES <- list(
   mutations = "pnet_data/original/P1000_final_analysis_set_cross_important_only.csv",
   cnvs = "pnet_data/original/P1000_data_CNA_paper.csv",
@@ -18,12 +21,21 @@ ORIGINAL_FILES <- list(
   validation_set = "pnet_data/original/validation_set.csv"
 )
 
-restore_input_files <- function() {
-  dir_create("pnet_data/mounted")
-  walk2(
-    ORIGINAL_FILES,
-    MOUNTED_FILES,
-    file_copy,
-    overwrite = TRUE
-  )
+
+
+# Logging -----------------------------------------------------------------
+
+default_logger <- log4r::logger(threshold = "DEBUG")
+
+debug <- function(..., .envir = parent.frame()) {
+  log4r::debug(default_logger, glue::glue(..., .envir = .envir))
 }
+
+info <- function(..., .envir = parent.frame()) {
+  log4r::info(default_logger, glue::glue(..., .envir = .envir))
+}
+
+warn <- function(..., .envir = parent.frame()) {
+  log4r::warn(default_logger, glue::glue(..., .envir = .envir))
+}
+

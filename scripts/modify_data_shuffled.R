@@ -1,15 +1,13 @@
-# scramble input labels in response_paper.csv
-# optionally ensure that class frequency remains constant
-# can process two command line argument:
+# shuffle input labels
+#
+# the script has two optional command line arguments:
 # (1) a Boolean value that decides whether to preserve the class frequency
 # (2) random seed for scrambling
 
 library(tidyverse)
 library(fs)
-source("scripts/common_functions.R")
+source("scripts/utils.R")
 
-
-restore_input_files()
 
 # process command line arguments
 args <- commandArgs(TRUE)
@@ -21,17 +19,12 @@ if (length(args) == 0L) {
   seed <- as.numeric(args[2])
 }
 
-# scramble labels
-labels <- read_csv(ORIGINAL_FILES$labels)
-
-if (keep_class_frequency) {
-  label_1_frq <- mean(labels$response)
-} else {
-  label_1_frq <- 0.5
-}
+# shuffle labels
+labels <- read_csv(MOUNTED_FILES$labels)
+label_1_frq <- if_else(keep_class_frequency, mean(labels$response), 0.5)
 
 set.seed(seed)
-scrambled_response <- sample(
+shuffled_response <- sample(
   0:1,
   nrow(labels),
   replace = TRUE,
@@ -39,5 +32,7 @@ scrambled_response <- sample(
 )
 
 labels %>%
-  mutate(response = scrambled_response) %>%
+  mutate(response = shuffled_response) %>%
   write_csv(MOUNTED_FILES$labels)
+
+info("Shuffled {nrow(labels)} labels")

@@ -130,6 +130,26 @@ After each run, the following files are copied from the PNET output folders:
 
 
 
+## Appendix: How to build the PNET Docker image
+
+The folder `docker` contains everything needed for building a Docker image with PNET installed:
+
+- `Dockerfile`: instructions for assembling the image
+- `environment_pnet.yml`: conda environment specification
+- `patch_seeds.diff`: patch that allows to change the random seed for PNET
+- `run_pnet.sh`: script for running PNET; used as entrypoint in the container
+- `setup.sh`: executed during image assembly; installs PNET (with input data) and conda
+
+
+Build and deploy the image via
+
+```bash
+docker build --tag ghcr.io/csbg/pnet-container .
+docker push ghcr.io/csbg/pnet-container:latest
+```
+
+
+
 ## Appendix: Description of files required by PNET
 
 - `genes/`: only the genes present in both of the following two files will be analyzed:

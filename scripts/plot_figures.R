@@ -14,7 +14,7 @@ original_seed <- "234_20080808"
 
 reactome_names <-
   read_tsv(
-    "pnet_data/ReactomePathways.txt",
+    "pnet_data/original/ReactomePathways.txt",
     col_names = c("reactome_id", "node", "species")) %>%
   filter(species == "Homo sapiens") %>%
   select(!species)
@@ -48,23 +48,30 @@ predictions <-
     glob = "data/*/*/predictions_test.csv",
     recurse = TRUE
   ) %>%
-  map_dfr(
-    ~read_csv(., col_types = "cfdf"),
-    .id = "file"
+  map(
+    \(file) {
+      read_csv(
+        file,
+        skip = 1,
+        col_names = c("sample_id", "predicted", "p_metastatic", "truth"),
+        col_types = "ccdc"
+      )
+    }
   ) %>%
-  extract(
+  list_rbind(names_to = "file") %>%
+  separate_wider_regex(
     file,
-    into = c("experiment", "seed"),
-    regex = str_glue("data/(.+?)/(.+?)/"),
-    convert = TRUE
+    c("data/", experiment = ".+", "/", seed = ".+", "/.+"),
   ) %>%
-  transmute(
-    experiment = fct_recode(experiment, !!!EXPERIMENT_NAMES),
-    seed,
-    obs = ...1,
-    truth = fct_recode(y, class_1 = "1", class_0 = "0"),
-    class_1 = pred_scores,
-    predicted = fct_recode(pred, class_1 = "1.0", class_0 = "0.0")
+  mutate(
+    truth =
+      truth %>%
+      fct_recode(metastatic = "1", primary = "0") %>%
+      fct_relevel("metastatic", "primary"),
+    predicted =
+      predicted %>%
+      fct_recode(metastatic = "1.0", primary = "0.0") %>%
+      fct_relevel("metastatic", "primary")
   )
 
 # only include nodes with connectivity; therefore, load link weight matrices of
@@ -132,7 +139,7 @@ plot_roc <- function(experiment) {
       metrics =
         pred %>%
         group_split() %>%
-        map(roc_curve, truth, class_1)
+        map(roc_curve, truth, p_metastatic)
     ) %>%
     unnest(metrics)
 

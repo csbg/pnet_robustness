@@ -5,6 +5,35 @@ log() {
   echo "pnet_robustness [$(date -Is)]:" "$@"
 }
 
+# parse arguments
+while getopts e:l:u: opt
+do
+  case $opt in
+    e) experiment=$OPTARG;; # experiment, required
+    l) lower_seed=$OPTARG;; # lower seed, optional (default: -1)
+    u) upper_seed=$OPTARG;; # upper seed, optional (default: 49)
+  esac
+done
+
+if [ -z $experiment ]
+then
+  log "Error: no experiment name specified"
+  exit 1
+fi
+
+if [ -z $lower_seed ]
+then
+  lower_seed=-1
+fi
+
+if [ -z $upper_seed ]
+then
+  upper_seed=49
+fi
+
+log "Starting PNET experiment '$experiment'"
+log "Seeds ranging from $lower_seed to $upper_seed"
+
 # setup environment
 source /opt/conda/etc/profile.d/conda.sh
 conda activate pnet_env
@@ -12,12 +41,11 @@ export PYTHONPATH=/app/pnet_prostate_paper:$PYTHONPATH
 
 # create directory for results
 pnet_dir=/app/pnet_prostate_paper/
-results_dir="data/$1"
+results_dir="data/$experiment"
 mkdir -p $results_dir
 
 # run PNET with several seeds
-log "Start PNET analysis"
-for seed in {-1..49}
+for seed in $(seq $lower_seed $upper_seed)
 do
   if [ $seed -eq -1 ]
   then

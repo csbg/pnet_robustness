@@ -38,7 +38,10 @@ Generally, each experiment comprises the following steps:
 
 1. Load PNET input data via `load_data_[dataset].R`.
 2. Optionally, modify input data via `modify_data_[technique].R`.
-3. Run PNET via Docker using the provided bash script `run_pnet_docker.sh [experiment]`.
+3. Run PNET via Docker using the provided bash script `run_pnet_docker.sh`. This script has three arguments:
+  - `-e experiment`: experiment name, required
+  - `-l [n]`: lower seed, optional (default: -1, which uses the original seeds)
+  - `-u [n]`: upper seed, optional (default: 49)
 
 Within each experiment, results from each run are saved in a subfolder indicating the two random seeds used (e.g., `0_0`).
 
@@ -51,7 +54,7 @@ Run PNET with the original setup as described in the publication.
 
 ```bash
 Rscript scripts/load_data_original.R
-./run_pnet_docker.sh pnet_original
+./run_pnet_docker.sh -e pnet_original
 ```
 
 
@@ -62,7 +65,7 @@ Input data is modified so that presence of mutation and copy number amplificatio
 ```bash
 Rscript scripts/load_data_original.R
 Rscript scripts/modify_data_deterministic.R
-./run_pnet_docker.sh pnet_deterministic
+./run_pnet_docker.sh -e pnet_deterministic
 ```
 
 
@@ -73,7 +76,15 @@ Shuffle training/test labels using uniform class frequencies.
 ```bash
 Rscript scripts/load_data_original.R
 Rscript scripts/modify_data_shuffled.R
-./run_pnet_docker.sh pnet_shuffled
+./run_pnet_docker.sh -e pnet_shuffled
+```
+
+Alternative variant where shuffling occurs before each run
+
+```bash
+Rscript scripts/load_data_original.R
+Rscript scripts/modify_data_shuffled.R
+./run_pnet_docker.sh -e pnet_shuffled
 ```
 
 
@@ -91,18 +102,40 @@ Most frequent cancer types:
 
 ```bash
 Rscript scripts/load_data_mskimpact.R
-./run_pnet_docker.sh mskimpact_all
+./run_pnet_docker.sh -e mskimpact_all
 
 Rscript scripts/load_data_mskimpact.R "Non-Small Cell Lung Cancer"
-./run_pnet_docker.sh mskimpact_nsclc
+./run_pnet_docker.sh -e mskimpact_nsclc -l -1 -u 10
 
 Rscript scripts/load_data_mskimpact.R "Non-Small Cell Lung Cancer"
 Rscript scripts/modify_data_shuffled.R
-./run_pnet_docker.sh mskimpact_nsclc_shuffled
+./run_pnet_docker.sh -e mskimpact_nsclc_shuffled -l -1 -u 10
 
 Rscript scripts/load_data_mskimpact.R "Non-Small Cell Lung Cancer"
 Rscript scripts/modify_data_deterministic.R
-./run_pnet_docker.sh mskimpact_nsclc_deterministic
+./run_pnet_docker.sh -e mskimpact_nsclc_deterministic -l -1 -u 10
+
+Rscript scripts/load_data_mskimpact.R "Breast Cancer"
+./run_pnet_docker.sh -e mskimpact_bc -l -1 -u 10
+
+Rscript scripts/load_data_mskimpact.R "Breast Cancer"
+Rscript scripts/modify_data_shuffled.R
+./run_pnet_docker.sh -e mskimpact_bc_shuffled -l -1 -u 10
+
+Rscript scripts/load_data_mskimpact.R "Breast Cancer"
+Rscript scripts/modify_data_deterministic.R
+./run_pnet_docker.sh -e mskimpact_bc_deterministic -l -1 -u 10
+
+Rscript scripts/load_data_mskimpact.R "Colorectal Cancer"
+./run_pnet_docker.sh -e mskimpact_cc -l -1 -u 10
+
+Rscript scripts/load_data_mskimpact.R "Colorectal Cancer"
+Rscript scripts/modify_data_shuffled.R
+./run_pnet_docker.sh -e mskimpact_cc_shuffled -l -1 -u 10
+
+Rscript scripts/load_data_mskimpact.R "Colorectal Cancer"
+Rscript scripts/modify_data_deterministic.R
+./run_pnet_docker.sh -e mskimpact_cc_deterministic -l -1 -u 10
 
 ```
 

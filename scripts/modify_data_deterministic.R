@@ -28,3 +28,5 @@ cnvs <-
 colnames(cnvs)[1] <- ""
 
 cnvs %>% write_csv(MOUNTED_FILES$cnvs)
+
+info("Created {nrow(cnvs)} deterministic samples")

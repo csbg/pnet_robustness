@@ -82,9 +82,11 @@ Rscript scripts/modify_data_shuffled.R
 Alternative variant where shuffling occurs before each run
 
 ```bash
-Rscript scripts/load_data_original.R
-Rscript scripts/modify_data_shuffled.R
-./run_pnet_docker.sh -e pnet_shuffled
+for seed in {-1..49}; do
+  Rscript scripts/load_data_original.R
+  Rscript scripts/modify_data_shuffled.R FALSE $seed
+  ./run_pnet_docker.sh -e pnet_shuffled_each -l $seed -u $seed
+done
 ```
 
 
@@ -105,37 +107,48 @@ Rscript scripts/load_data_mskimpact.R
 ./run_pnet_docker.sh -e mskimpact_all
 
 Rscript scripts/load_data_mskimpact.R "Non-Small Cell Lung Cancer"
-./run_pnet_docker.sh -e mskimpact_nsclc -l -1 -u 10
+./run_pnet_docker.sh -e mskimpact_nsclc -l -1 -u 9
 
 Rscript scripts/load_data_mskimpact.R "Non-Small Cell Lung Cancer"
 Rscript scripts/modify_data_shuffled.R
-./run_pnet_docker.sh -e mskimpact_nsclc_shuffled -l -1 -u 10
+./run_pnet_docker.sh -e mskimpact_nsclc_shuffled -l -1 -u 9
 
 Rscript scripts/load_data_mskimpact.R "Non-Small Cell Lung Cancer"
 Rscript scripts/modify_data_deterministic.R
-./run_pnet_docker.sh -e mskimpact_nsclc_deterministic -l -1 -u 10
+./run_pnet_docker.sh -e mskimpact_nsclc_deterministic -l -1 -u 9
 
 Rscript scripts/load_data_mskimpact.R "Breast Cancer"
-./run_pnet_docker.sh -e mskimpact_bc -l -1 -u 10
+./run_pnet_docker.sh -e mskimpact_bc -l -1 -u 9
 
 Rscript scripts/load_data_mskimpact.R "Breast Cancer"
 Rscript scripts/modify_data_shuffled.R
-./run_pnet_docker.sh -e mskimpact_bc_shuffled -l -1 -u 10
+./run_pnet_docker.sh -e mskimpact_bc_shuffled -l -1 -u 9
 
 Rscript scripts/load_data_mskimpact.R "Breast Cancer"
 Rscript scripts/modify_data_deterministic.R
-./run_pnet_docker.sh -e mskimpact_bc_deterministic -l -1 -u 10
+./run_pnet_docker.sh -e mskimpact_bc_deterministic -l -1 -u 9
 
 Rscript scripts/load_data_mskimpact.R "Colorectal Cancer"
-./run_pnet_docker.sh -e mskimpact_cc -l -1 -u 10
+./run_pnet_docker.sh -e mskimpact_cc -l -1 -u 9
 
 Rscript scripts/load_data_mskimpact.R "Colorectal Cancer"
 Rscript scripts/modify_data_shuffled.R
-./run_pnet_docker.sh -e mskimpact_cc_shuffled -l -1 -u 10
+./run_pnet_docker.sh -e mskimpact_cc_shuffled -l -1 -u 9
 
 Rscript scripts/load_data_mskimpact.R "Colorectal Cancer"
 Rscript scripts/modify_data_deterministic.R
-./run_pnet_docker.sh -e mskimpact_cc_deterministic -l -1 -u 10
+./run_pnet_docker.sh -e mskimpact_cc_deterministic -l -1 -u 9
+
+Rscript scripts/load_data_mskimpact.R "Prostate Cancer"
+./run_pnet_docker.sh -e mskimpact_pc -l -1 -u 9
+
+Rscript scripts/load_data_mskimpact.R "Prostate Cancer"
+Rscript scripts/modify_data_shuffled.R
+./run_pnet_docker.sh -e mskimpact_pc_shuffled -l -1 -u 9
+
+Rscript scripts/load_data_mskimpact.R "Prostate Cancer"
+Rscript scripts/modify_data_deterministic.R
+./run_pnet_docker.sh -e mskimpact_pc_deterministic -l -1 -u 9
 
 ```
 

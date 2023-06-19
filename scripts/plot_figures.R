@@ -17,30 +17,30 @@ reactome_names <-
     "pnet_data/original/ReactomePathways.txt",
     col_names = c("reactome_id", "node", "species")) %>%
   filter(species == "Homo sapiens") %>%
-  select(!species)
+  select(!species) %>%
+  distinct(node, .keep_all = TRUE)
 
 node_importance <-
   dir_ls(
     glob = str_glue("data/*/*/node_importance.csv"),
     recurse = TRUE
   ) %>%
-  map_dfr(
-    read_csv,
-    show_col_types = FALSE,
-    .id = "file"
+  map(
+    \(file) {
+      read_csv(
+        file,
+        show_col_types = FALSE,
+      )
+    }
+  ) %>%
+  list_rbind(names_to = "file") %>%
+  separate_wider_regex(
+    file,
+    c("data/", experiment = ".+", "/", seed = ".+", "/.+"),
   ) %>%
   rename(node = ...1) %>%
-  left_join(reactome_names, by = "node") %>%
+  left_join(reactome_names, by = "node", relationship = "many-to-one") %>%
   mutate(reactome_id = if_else(layer == 1, node, reactome_id)) %>%
-  extract(
-    file,
-    into = c("experiment", "seed"),
-    regex = str_glue("data/(.+)/(.+)/"),
-    convert = TRUE
-  ) %>%
-  group_by(experiment, seed, layer) %>%
-  mutate(experiment = fct_recode(experiment, !!!EXPERIMENT_NAMES)) %>%
-  ungroup() %>%
   select(experiment, seed, layer, coef_combined, reactome_id)
 
 predictions <-
@@ -334,7 +334,7 @@ ggsave_publication("2c_roc", width = 4, height = 4)
 plot_bias_comparison <- function(experiment, top_nodes = 5) {
   node_importance <-
     node_importance %>%
-    filter(experiment %in% c("original setup", {{experiment}}))
+    filter(experiment %in% c("pnet_original", {{experiment}}))
 
   top_nodes_per_layer <-
     node_importance %>%

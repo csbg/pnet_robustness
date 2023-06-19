@@ -80,7 +80,7 @@ pnet_edges <-
   map_dfr(
     0:6,
     function(layer) {
-      df <- read_csv(str_glue("data/original/234_20080808/link_weights_{layer}.csv"))
+      df <- read_csv(str_glue("data/pnet_original/234_20080808/link_weights_{layer}.csv"))
       if (layer == 0) {
         colnames(df)[1] <- "to"
         colnames(df)[2] <- "from"
@@ -157,13 +157,13 @@ plot_roc <- function(experiment) {
     theme(panel.grid = element_blank())
 }
 
-plot_roc("original setup")
+plot_roc("pnet_original")
 ggsave_publication("1b_roc", width = 4, height = 4)
 
 
 ## c ----
 
-plot_robustness <- function(top_nodes = 10, experiment = "original setup") {
+plot_robustness <- function(top_nodes = 10, experiment = "pnet_original") {
   node_importance <-
     node_importance %>%
     filter(experiment == {{experiment}})
@@ -218,7 +218,7 @@ ggsave_publication("1c_robustness", width = 18, height = 4)
 plot_changes <- function(seed = "28_28", top_nodes = c(4, 43)) {
   plot_data <-
     node_importance %>%
-    filter(experiment == "original setup", layer == 1)
+    filter(experiment == "pnet_original", layer == 1)
 
   top_nodes <-
     plot_data %>%
@@ -319,13 +319,13 @@ plot_bias <- function(experiment, top_nodes = 5) {
     )
 }
 
-plot_bias("deterministic inputs")
+plot_bias("pnet_deterministic")
 ggsave_publication("2b_scores", width = 14, height = 4)
 
 
 ## c ----
 
-plot_roc("deterministic inputs")
+plot_roc("pnet_deterministic")
 ggsave_publication("2c_roc", width = 4, height = 4)
 
 
@@ -381,7 +381,7 @@ plot_bias_comparison <- function(experiment, top_nodes = 5) {
     )
 }
 
-plot_bias_comparison("deterministic inputs")
+plot_bias_comparison("pnet_deterministic")
 ggsave_publication("2d_comparison", width = 14, height = 4)
 
 
@@ -390,19 +390,19 @@ ggsave_publication("2d_comparison", width = 14, height = 4)
 
 ## b ----
 
-plot_bias("shuffled labels")
+plot_bias("pnet_shuffled")
 ggsave_publication("3b_scores", width = 14, height = 4)
 
 
 ## c ----
 
-plot_roc("shuffled labels")
+plot_roc("pnet_shuffled")
 ggsave_publication("3c_roc", width = 4, height = 4)
 
 
 ## d ----
 
-plot_bias_comparison("shuffled labels")
+plot_bias_comparison("pnet_shuffled")
 ggsave_publication("3d_comparison", width = 14, height = 4)
 
 
@@ -420,6 +420,9 @@ plot_cor_heatmap <- function(layer = NULL,
 
   corr_mat <-
     node_importance %>%
+    filter(
+      experiment %in% c("pnet_original", "pnet_deterministic", "pnet_shuffled")
+    ) %>%
     unite(experiment, seed, col = "exp_seed", sep = "+") %>%
     select(exp_seed, reactome_id, coef_combined) %>%
     pivot_wider(names_from = exp_seed, values_from = coef_combined) %>%
@@ -507,6 +510,9 @@ walk(
 
 cor_data_pearson <-
   node_importance %>%
+  filter(
+    experiment %in% c("pnet_original", "pnet_deterministic", "pnet_shuffled")
+  ) %>%
   left_join(graph_stats, by = c("reactome_id", "layer")) %>%
   group_split(experiment, seed, layer) %>%
   map_dfr(
@@ -527,7 +533,7 @@ plot_network_heatmap <- function(cor_data) {
     group_by(experiment, layer) %>%
     summarise(across(indegree:betweenness, mean, na.rm = TRUE)) %>%
     pivot_longer(indegree:betweenness, names_to = "measure") %>%
-    unite(experiment, experiment, measure) %>%
+    unite(experiment, experiment, measure, sep = ":") %>%
     pivot_wider(names_from = layer) %>%
     column_to_rownames("experiment") %>%
     as.matrix() %>%
@@ -538,7 +544,7 @@ plot_network_heatmap <- function(cor_data) {
 
   col_metadata <-
     tibble(colname = colnames(mat)) %>%
-    separate(colname, into = c("experiment", "measure"), sep = "_")
+    separate(colname, into = c("experiment", "measure"), sep = ":")
 
   colnames(mat) <- col_metadata$measure
 
@@ -569,6 +575,7 @@ plot_network_heatmap <- function(cor_data) {
     row_names_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
 
     column_dend_gp = gpar(lwd = 0.5),
+    column_title = "{recode(x[1], !!!EXPERIMENT_NAMES)}",
     column_title_side = "top",
     column_title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
     column_names_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
@@ -619,7 +626,10 @@ normalize <- function(x) {
 
 plot_selected_scatterplots <- function() {
   node_importance %>%
-    filter(layer == 5) %>%
+    filter(
+      experiment %in% c("pnet_original", "pnet_deterministic", "pnet_shuffled"),
+      layer == 5
+    ) %>%
     group_by(experiment, layer, reactome_id) %>%
     summarise(coef_combined = mean(coef_combined)) %>%
     left_join(graph_stats, by = c("reactome_id", "layer")) %>%
@@ -672,6 +682,9 @@ label_middle <- function(labels) {
 plot_importance_vs_measure <- function() {
   plot_data <-
     node_importance %>%
+    filter(
+      experiment %in% c("pnet_original", "pnet_deterministic", "pnet_shuffled")
+    ) %>%
     group_by(experiment, layer, reactome_id) %>%
     summarise(coef_combined = mean(coef_combined)) %>%
     left_join(graph_stats, by = c("reactome_id", "layer")) %>%
@@ -681,7 +694,8 @@ plot_importance_vs_measure <- function() {
       names_to = "measure",
       names_transform =
         list(measure = fct_inorder)
-    )
+    ) %>%
+    mutate(experiment_long = recode(experiment, !!!EXPERIMENT_NAMES))
 
   ggplot(plot_data, aes(value, coef_combined, color = experiment)) +
     geom_point(size = .1, alpha = 1, shape = 16, show.legend = FALSE) +
@@ -707,8 +721,8 @@ plot_importance_vs_measure <- function() {
     coord_fixed() +
     facet_grid(
       vars(layer),
-      vars(experiment, measure),
-      labeller = labeller(experiment = label_middle)
+      vars(experiment_long, measure),
+      labeller = labeller(experiment_long = label_middle)
     ) +
     theme_pub() +
     theme(
@@ -745,6 +759,9 @@ ggsave_publication("S3_reachability_vs_betweenness",
 ## Importance score correlation ----
 
 node_importance %>%
+  filter(
+    experiment %in% c("pnet_original", "pnet_deterministic", "pnet_shuffled")
+  ) %>%
   unite(experiment, seed, col = "exp_seed", sep = "+") %>%
   select(exp_seed, reactome_id, coef_combined) %>%
   pivot_wider(names_from = exp_seed, values_from = coef_combined) %>%

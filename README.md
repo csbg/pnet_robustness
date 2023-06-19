@@ -71,15 +71,7 @@ Rscript scripts/modify_data_deterministic.R
 
 ### Shuffled labels
 
-Shuffle training/test labels using uniform class frequencies.
-
-```bash
-Rscript scripts/load_data_original.R
-Rscript scripts/modify_data_shuffled.R
-./run_pnet_docker.sh -e pnet_shuffled
-```
-
-Alternative variant where shuffling occurs before each run
+Shuffle training/test labels before each run using uniform class frequencies.
 
 ```bash
 for seed in {-1..49}; do

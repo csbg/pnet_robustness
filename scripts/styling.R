@@ -7,17 +7,16 @@ library(ComplexHeatmap)
 # Common definitions ------------------------------------------------------
 
 EXPERIMENT_NAMES <- c(
-  "original setup" = "pnet_original",
-  "deterministic inputs" = "pnet_deterministic",
-  "shuffled labels" = "pnet_shuffled"
+  "pnet_original" = "original setup",
+  "pnet_deterministic" = "deterministic inputs",
+  "pnet_shuffled" = "shuffled labels"
 )
 
 EXPERIMENT_COLORS <- c(
   "pnet_original" = "gray50",
   "pnet_deterministic" = "#3182bd",
   "pnet_shuffled" = "#e69f00",
-  "pnet_shuffled_each" = "pink",
-  "MSK-IMPACT" = "#66a61e",
+  "mskimpact" = "#66a61e",
   "mskimpact_pc" = "#66a61e"
 )
 

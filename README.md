@@ -179,6 +179,21 @@ Rscript scripts/modify_data_shuffled.R
 ```
 
 
+
+## Run Dtox
+
+```bash
+# TODO: cloning and modifying dtox, conda environment
+git clone https://github.com/EpistasisLab/DTox.git
+git -C DTox checkout -b pnet-robustness 10c909b
+git -C DTox apply ../patch_seeds.diff # TODO
+
+conda activate DTox
+set -x PYTHONPATH $PWD/dtox/DTox/code:$PYTHONPATH  # NB fish specific!
+python run_dtox.py
+```
+
+
 ## Analyze results
 
 After each run, the following files are copied from the PNET output folders:

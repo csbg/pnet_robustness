@@ -1,0 +1,65 @@
+diff --git a/code/dtox.py b/code/dtox.py
+index 3cfe8cd..78e0065 100644
+--- a/code/dtox.py
++++ b/code/dtox.py
+@@ -14,7 +14,7 @@ import dtox_learning
+ 
+ 
+ ## This function implements DTox model training  
+-def dtox(dtox_combine_df, label_col_name, out_folder, root_process = 'GE+IS+M+ST', min_pathway_size = 5, max_module_size = 20, auxiliary_alpha = 0.5, l2_lambda = 0.0001):
++def dtox(dtox_combine_df, label_col_name, out_folder, root_process = 'GE+IS+M+ST', min_pathway_size = 5, max_module_size = 20, auxiliary_alpha = 0.5, l2_lambda = 0.0001, seed = 0):
+ 	## 0. Input arguments 
+ 		# dtox_combine_df: data frame that contains combined training and testing data  
+ 		# label_col_name: name of column that contains label/response data
+@@ -42,14 +42,14 @@ def dtox(dtox_combine_df, label_col_name, out_folder, root_process = 'GE+IS+M+ST
+ 	rt_layer_file = 'data/reactome/hierarchy/' + root_id + '_ps_5_re_0_st_0_layer.tsv'
+ 
+ 	## 2. learn DTox model with training and testing data (training data for learning parameters, testing data for implementing early stop), save model to output model file 
+-	torch.manual_seed(0)
++	torch.manual_seed(seed)
+ 	hierarchy_info, trained_model, loss, training_summary_df = dtox_learning.train_dtox_model(rt_root_file, rt_connection_file, rt_size_file, rt_layer_file, min_pathway_size, max_module_size, training_data_loader, testing_data, auxiliary_alpha, l2_lambda, dtox_model_name = output_model_name, dtox_device = device)
+ 
+ 	return hierarchy_info, trained_model, loss, training_summary_df 
+ 
+ 
+ ## This function implements DTox model evaluation 
+-def dtox_eval(dtox_combine_df, dtox_valid_df, label_col_name, trained_model, loss): 	
++def dtox_eval(dtox_combine_df, dtox_valid_df, label_col_name, trained_model, loss, out_folder):
+ 	## 0. Input arguments 
+ 		# dtox_combine_df: data frame that contains combined training and testing data  
+ 		# dtox_valid_df: data frame that contains validation data 
+@@ -68,8 +68,6 @@ def dtox_eval(dtox_combine_df, dtox_valid_df, label_col_name, trained_model, los
+ 	# evaluate learned DTox model on combined training and testing data (training performance) 
+ 	combined_perf = dtox_learning.evaluate_dtox_model(trained_model, loss, combined_data, dtox_device = device)
+ 	# evaluate learned DTox model on validation data (validation performance)
+-	validation_perf = dtox_learning.evaluate_dtox_model(trained_model, loss, validation_data, dtox_device = device)
++	validation_perf = dtox_learning.evaluate_dtox_model(trained_model, loss, validation_data, dtox_device = device, out_folder = out_folder)
+ 
+ 	return combined_perf, validation_perf
+-
+-
+diff --git a/code/dtox_learning.py b/code/dtox_learning.py
+index ac32ca0..a185e62 100644
+--- a/code/dtox_learning.py
++++ b/code/dtox_learning.py
+@@ -152,8 +152,8 @@ def compute_metric_ci_by_bootsrap(metric_function, label_vec, pred_vec, confiden
+ 	return ci
+ 
+ 
+-## This function evaluates the performance of trained DTox model on input validation data  
+-def evaluate_dtox_model(dtox_model, dtox_loss_function, dtox_eval_data, dtox_device = 'cpu'): 
++## This function evaluates the performance of trained DTox model on input validation data
++def evaluate_dtox_model(dtox_model, dtox_loss_function, dtox_eval_data, dtox_device = 'cpu', out_folder = None):
+ 	## 0. Input arguments
+ 		# dtox_model: trained DTox model
+ 		# dtox_loss_function: defined DTox loss function  
+@@ -185,6 +185,9 @@ def evaluate_dtox_model(dtox_model, dtox_loss_function, dtox_eval_data, dtox_dev
+ 	eval_root_loss = float(eval_root_loss1.data)
+ 	eval_auxi_loss = float(eval_auxi_loss1.data)
+ 	# compute AUROC and its 95% confidence interval
++	if out_folder is not None:
++		(pd.DataFrame(dict(truth=eval_label1, predicted=eval_pred))
++			 .to_csv(out_folder + "test_labels.csv", index=False))
+ 	eval_auc = roc_auc_score(eval_label1, eval_pred)
+ 	eval_auc_ci = compute_metric_ci_by_bootsrap(roc_auc_score, eval_label1, eval_pred)
+ 	# compute balanced accuracy and its 95% confidence interval

@@ -2,6 +2,7 @@
 
 import logging
 import os
+from sys import argv
 import pandas as pd
 import dtox
 import dtox_interpret
@@ -14,7 +15,15 @@ logging.basicConfig(format="%(levelname)s [%(asctime)s] %(message)s",
 # constants
 AO_COL = 'assay_outcome'
 START_DIR = os.getcwd()
-os.chdir("dtox/DTox")
+os.chdir("/app/DTox")
+
+if len(argv) != 3:
+    LOWER_SEED = 0
+    UPPER_SEED = 50
+else:
+    LOWER_SEED = int(argv[1])
+    UPPER_SEED = int(argv[2])
+logging.info("Using seeds %i to %i", LOWER_SEED, UPPER_SEED)
 
 # (1) load raw input data
 logging.info("Loading input data")
@@ -39,7 +48,7 @@ test_data = targettox.derive_target_profile(test_data_raw)
 test_data[AO_COL] = test_data_raw[AO_COL]
 
 # (3) train several models and get importance scores
-for seed in range(3, 20):
+for seed in range(LOWER_SEED, UPPER_SEED + 1):
     result_folder = f"{START_DIR}/data/dtox/{seed}/"
     os.makedirs(result_folder, exist_ok=True)
 

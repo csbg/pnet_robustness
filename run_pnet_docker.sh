@@ -9,4 +9,4 @@ docker run \
   -v $PWD/pnet_data/mounted/training_set.csv:/app/pnet_prostate_paper/_database/prostate/splits/training_set_0.csv \
   -v $PWD/pnet_data/mounted/test_set.csv:/app/pnet_prostate_paper/_database/prostate/splits/test_set.csv \
   -v $PWD/pnet_data/mounted/validation_set.csv:/app/pnet_prostate_paper/_database/prostate/splits/validation_set.csv \
-  ghcr.io/csbg/pnet-container $@
+  ghcr.io/csbg/pnet-container:1.0.0 $@

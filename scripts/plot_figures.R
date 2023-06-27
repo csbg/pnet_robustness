@@ -4,6 +4,8 @@ library(yardstick)
 library(ComplexHeatmap)
 library(khroma)
 library(igraph)
+library(limma)
+library(ggrepel)
 source("scripts/styling.R")
 
 
@@ -80,7 +82,9 @@ pnet_edges <-
   map_dfr(
     0:6,
     function(layer) {
-      df <- read_csv(str_glue("data/pnet_original/234_20080808/link_weights_{layer}.csv"))
+      df <- read_csv(
+        str_glue("data/pnet_original/234_20080808/link_weights_{layer}.csv")
+      )
       if (layer == 0) {
         colnames(df)[1] <- "to"
         colnames(df)[2] <- "from"
@@ -491,19 +495,6 @@ ggsave_publication("4_cor_heatmap", plot = p,
 
 
 
-# Figure S1 ---------------------------------------------------------------
-
-walk(
-  1:6,
-  function(l) {
-    p <- plot_cor_heatmap(layer = l, show_legends = FALSE, heatmap_size = 40)
-    ggsave_publication(str_glue("S1{letters[l]}_cor_heatmap_layer_{l}"),
-                       plot = p, width = 6, height = 4.5, type = "png")
-  }
-)
-
-
-
 # Figure 5 ----------------------------------------------------------------
 
 ## a ----
@@ -667,7 +658,146 @@ ggsave_publication("5b_reachability_vs_importance", width = 8, height = 4)
 
 
 
+# Figure 6 ----------------------------------------------------------------
+
+plot_correction <- function(cutoff = 1) {
+  # matrix, rows = nodes, columns = experiments/seeds,
+  # values = quantile-normalized node importances
+  normalized_mat <-
+    node_importance %>%
+    filter(experiment %in% c("pnet_original", "pnet_shuffled")) %>%
+    unite(experiment, seed, col = "exp_seed", sep = "/") %>%
+    select(!layer) %>%
+    pivot_wider(names_from = exp_seed, values_from = coef_combined) %>%
+    column_to_rownames("reactome_id") %>%
+    as.matrix() %>%
+    normalizeQuantiles()
+
+  idx_original <- str_starts(colnames(normalized_mat), "pnet_original")
+
+  # data frame, one row per node
+  # original_seed: node importance in original setup with original seed
+  # original: average node importance in original setup
+  # control: average node importance with shuffled labels
+  plot_data <-
+    node_importance %>%
+    filter(str_starts(experiment, "pnet")) %>%
+    distinct(layer, reactome_id) %>%
+    left_join(reactome_names, by = "reactome_id") %>%
+    mutate(
+      original_seed = normalized_mat[, "pnet_original/234_20080808"],
+      original = rowMeans(normalized_mat[, idx_original]),
+      control = rowMeans(normalized_mat[, !idx_original]),
+      positive = original - control > 0,
+      node = coalesce(node, reactome_id)
+    ) %>%
+    mutate(
+      .by = layer,
+      rank_original_seed = rank(-original_seed)
+    )
+
+  color_limits <-
+    plot_data %>%
+    filter(control < cutoff, original_seed < cutoff) %>%
+    {hexbin::hexbin(.$control, .$original, xbins = 100)} %>%
+    slot("count") %>%
+    range()
+
+  ggplot(plot_data, aes(control, original)) +
+    geom_hex(
+      data = plot_data %>% filter(control < cutoff, original_seed < cutoff),
+      bins = 100
+    ) +
+    geom_segment(
+      data = plot_data %>% filter(control > cutoff | original_seed > cutoff),
+      aes(yend = control, xend = control, color = positive),
+      show.legend = FALSE,
+      linewidth = BASE_LINEWIDTH
+    ) +
+    geom_point(
+      data = plot_data %>% filter(control > cutoff | original_seed > cutoff),
+      aes(color = positive),
+      show.legend = FALSE,
+      size = 0.25
+    ) +
+    geom_abline(linewidth = BASE_LINEWIDTH) +
+    geom_text_repel(
+      data = plot_data %>% filter(rank_original_seed <= 5),
+      aes(label = node),
+      min.segment.length = 0,
+      size = BASE_TEXT_SIZE_MM,
+      segment.size = BASE_LINEWIDTH,
+      segment.color = "gray70"
+    ) +
+    scale_color_manual(values = c("blue", "red")) +
+    scale_fill_gradient(
+      low = "grey",
+      high = "black",
+      limits = color_limits,
+      breaks = color_limits,
+      guide = guide_colorbar(
+        barheight = unit(15, "mm"),
+        barwidth = unit(2, "mm"),
+        ticks = FALSE
+      ),
+    ) +
+    facet_wrap(vars(layer), ncol = 3) +
+    xlab("average normalized importance score (control, i.e., shuffled labels)") +
+    ylab("average normalized importance score (original setup)") +
+    theme_pub() +
+    theme(
+      panel.grid = element_blank()
+    )
+}
+
+plot_correction()
+ggsave_publication("6_correction_approach", width = 18, height = 12)
+
+
+
+# Figure S1 ---------------------------------------------------------------
+
+left_join(
+  node_importance %>%
+    filter(experiment == "pnet_original", seed == original_seed),
+  node_importance %>%
+    filter(experiment == "pnet_original", seed != original_seed) %>%
+    summarise(
+      .by = c(layer, reactome_id),
+      coef_combined_avg = mean(coef_combined)
+    ),
+  by = c("layer", "reactome_id")
+) %>%
+  ggplot(aes(coef_combined - coef_combined_avg, color = factor(layer))) +
+  stat_ecdf() +
+  xlab("difference between node importance (original seed)\n and average node importance (other seeds)") +
+  ylab("cumulative density") +
+  scale_color_brewer("layer", palette = "Dark2") +
+  theme_pub() +
+  theme(
+    legend.key.height = unit(2, "mm"),
+    legend.key.width = unit(2, "mm"),
+    legend.position = c(.85, .35),
+    panel.grid = element_blank()
+  )
+ggsave_publication("S1_delta_node_importance_distribution", width = 5, height = 4)
+
+
+
 # Figure S2 ---------------------------------------------------------------
+
+walk(
+  1:6,
+  function(l) {
+    p <- plot_cor_heatmap(layer = l, show_legends = FALSE, heatmap_size = 40)
+    ggsave_publication(str_glue("S2{letters[l]}_cor_heatmap_layer_{l}"),
+                       plot = p, width = 6, height = 4.5, type = "png")
+  }
+)
+
+
+
+# Figure S3 ---------------------------------------------------------------
 
 label_middle <- function(labels) {
   middle_index <-
@@ -733,12 +863,12 @@ plot_importance_vs_measure <- function() {
 }
 
 plot_importance_vs_measure()
-ggsave_publication("S2_importance_vs_measure",
+ggsave_publication("S3_importance_vs_measure",
                    width = 28, height = 12, type = "png")
 
 
 
-# Figure S3 ---------------------------------------------------------------
+# Figure S4 ---------------------------------------------------------------
 
 graph_stats %>%
   filter(layer %>% between(2, 6)) %>%
@@ -749,14 +879,14 @@ graph_stats %>%
   theme_pub() +
   theme(panel.grid = element_blank())
 
-ggsave_publication("S3_reachability_vs_betweenness",
+ggsave_publication("S4_reachability_vs_betweenness",
                    height = 4, width = 18, type = "png")
 
 
 
 # Values in main text -----------------------------------------------------
 
-## Importance score correlation ----
+## P-NET importance score correlation ----
 
 node_importance %>%
   filter(
@@ -778,5 +908,5 @@ node_importance %>%
   separate(from, into = c("from_exp", "from_seed"), sep = "\\+") %>%
   filter(!is.na(corr)) %>%
   group_by(from_exp, to_exp) %>%
-  summarise(mean_corr = mean(corr))
+  summarise(mean_corr = mean(corr) %>% round(2))
 

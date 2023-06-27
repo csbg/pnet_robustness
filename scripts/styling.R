@@ -9,15 +9,23 @@ library(ComplexHeatmap)
 EXPERIMENT_NAMES <- c(
   "pnet_original" = "original setup",
   "pnet_deterministic" = "deterministic inputs",
-  "pnet_shuffled" = "shuffled labels"
+  "pnet_shuffled" = "shuffled labels",
+  "mskimpact_nsclc_original" = "lung",
+  "mskimpact_bc_original" = "breast",
+  "mskimpact_cc_original" = "colorectal",
+  "mskimpact_pc_original" = "prostate"
 )
 
+# for MSK-IMPACT from https://wesandersonpalettes.tumblr.com/
+# (The deeper you go, the weirder life gets.)
 EXPERIMENT_COLORS <- c(
   "pnet_original" = "gray50",
   "pnet_deterministic" = "#3182bd",
   "pnet_shuffled" = "#e69f00",
-  "mskimpact" = "#66a61e",
-  "mskimpact_pc" = "#66a61e"
+  "mskimpact_nsclc_original" = "#c5a495",
+  "mskimpact_bc_original" = "#7b6da8",
+  "mskimpact_cc_original" = "#f3d28f",
+  "mskimpact_pc_original" = "#235135"
 )
 
 ORIGINAL_SEED_COLOR <- "red"
@@ -48,13 +56,13 @@ theme_pub <- function(rotate_x_labels = FALSE, ...){
   res <-
     theme_bw(...) +
     theme(
-      line = element_line(size = BASE_LINEWIDTH),
+      line = element_line(linewidth = BASE_LINEWIDTH),
       axis.text = element_text(color = "black", size = BASE_TEXT_SIZE_PT),
       axis.title = element_text(color = "black", size = BASE_TEXT_SIZE_PT),
       legend.background = element_blank(),
       legend.text = element_text(color = "black", size = BASE_TEXT_SIZE_PT),
       legend.title = element_text(size = BASE_TEXT_SIZE_PT),
-      panel.border = element_rect(size = BASE_LINEWIDTH * 2),
+      panel.border = element_rect(linewidth = BASE_LINEWIDTH * 2),
       plot.margin = unit(c(1, 1, 1, 1), "mm"),
       strip.background = element_blank(),
       strip.text = element_text(

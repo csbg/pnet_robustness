@@ -6,6 +6,7 @@ library(khroma)
 library(igraph)
 library(limma)
 library(ggrepel)
+library(patchwork)
 source("scripts/styling.R")
 
 
@@ -784,20 +785,20 @@ ggsave_publication("S1_delta_node_importance_distribution", width = 5, height = 
 
 
 
-# Figure S2 ---------------------------------------------------------------
+# Figure S3 ---------------------------------------------------------------
 
 walk(
   1:6,
   function(l) {
     p <- plot_cor_heatmap(layer = l, show_legends = FALSE, heatmap_size = 40)
-    ggsave_publication(str_glue("S2{letters[l]}_cor_heatmap_layer_{l}"),
+    ggsave_publication(str_glue("S3{letters[l]}_cor_heatmap_layer_{l}"),
                        plot = p, width = 6, height = 4.5, type = "png")
   }
 )
 
 
 
-# Figure S3 ---------------------------------------------------------------
+# Figure S4 ---------------------------------------------------------------
 
 label_middle <- function(labels) {
   middle_index <-
@@ -863,12 +864,12 @@ plot_importance_vs_measure <- function() {
 }
 
 plot_importance_vs_measure()
-ggsave_publication("S3_importance_vs_measure",
+ggsave_publication("S4_importance_vs_measure",
                    width = 28, height = 12, type = "png")
 
 
 
-# Figure S4 ---------------------------------------------------------------
+# Figure S5 ---------------------------------------------------------------
 
 graph_stats %>%
   filter(layer %>% between(2, 6)) %>%
@@ -879,8 +880,141 @@ graph_stats %>%
   theme_pub() +
   theme(panel.grid = element_blank())
 
-ggsave_publication("S4_reachability_vs_betweenness",
+ggsave_publication("S5_reachability_vs_betweenness",
                    height = 4, width = 18, type = "png")
+
+
+
+# Figure S6 ---------------------------------------------------------------
+
+## a ----
+
+wrap_plots(
+  plot_roc("mskimpact_nsclc_original"),
+  plot_roc("mskimpact_bc_original"),
+  plot_roc("mskimpact_cc_original"),
+  plot_roc("mskimpact_pc_original"),
+  plot_roc("mskimpact_nsclc_shuffled"),
+  plot_roc("mskimpact_bc_shuffled"),
+  plot_roc("mskimpact_cc_shuffled"),
+  plot_roc("mskimpact_pc_shuffled"),
+  nrow = 2
+)
+ggsave_publication("S6a_mskimpact_roc", width = 18, height = 9)
+
+
+## b ----
+
+plot_msk_heatmap <- function() {
+  normalize_importances <- function(original, control) {
+    normalized_mat <-
+      node_importance %>%
+      filter(experiment %in% c(original, control)) %>%
+      unite(experiment, seed, col = "exp_seed", sep = "/") %>%
+      select(!layer) %>%
+      pivot_wider(names_from = exp_seed, values_from = coef_combined) %>%
+      column_to_rownames("reactome_id") %>%
+      as.matrix() %>%
+      normalizeQuantiles()
+
+    idx_original <- str_detect(colnames(normalized_mat), original)
+
+    tibble(
+      experiment = original,
+      reactome_id = rownames(normalized_mat),
+      original = rowMeans(normalized_mat[, idx_original]),
+      control = rowMeans(normalized_mat[, !idx_original]),
+      delta = original - control
+    )
+  }
+
+  corr_mat_corrected <-
+    tribble(
+      ~original, ~control,
+      "mskimpact_nsclc_original", "mskimpact_nsclc_shuffled",
+      "mskimpact_bc_original", "mskimpact_bc_shuffled",
+      "mskimpact_cc_original", "mskimpact_cc_shuffled",
+      "mskimpact_pc_original", "mskimpact_pc_shuffled"
+    ) %>%
+    pmap(normalize_importances) %>%
+    list_rbind() %>%
+    select(!c(original, control)) %>%
+    pivot_wider(names_from = experiment, values_from = delta) %>%
+    select(!reactome_id) %>%
+    cor(use = "pairwise.complete.obs")
+
+  corr_mat_biased <-
+    node_importance %>%
+    filter(
+      experiment %in% c("mskimpact_nsclc_original", "mskimpact_bc_original",
+                        "mskimpact_cc_original", "mskimpact_pc_original"),
+    ) %>%
+    summarise(
+      .by = c(experiment, layer, reactome_id),
+      coef_combined = mean(coef_combined)
+    ) %>%
+    select(!layer) %>%
+    pivot_wider(names_from = experiment, values_from = coef_combined) %>%
+    select(!reactome_id) %>%
+    cor(use = "pairwise.complete.obs")
+
+  color_limits <- range(corr_mat_biased, corr_mat_corrected)
+
+  plot_heatmap <- function(corr_mat,
+                           color_limits,
+                           col_title = "",
+                           show_legends = TRUE,
+                           heatmap_size = 20) {
+    cor_range <- range(corr_mat[lower.tri(corr_mat)]) %>% round(2)
+    message("Correlation range (", col_title, "): ",
+            cor_range[1], " to ", cor_range[2])
+
+    Heatmap(
+      corr_mat,
+      col = circlize::colorRamp2(
+        seq(color_limits[1], color_limits[2], length.out = 9),
+        color("davos", reverse = TRUE)(9),
+      ),
+
+      show_heatmap_legend = show_legends,
+      name = "correlation of\nnode importance\nscores",
+      heatmap_legend_param = list(
+        at = round(color_limits, 2),
+        border = FALSE,
+        grid_width = unit(2, "mm"),
+        labels_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+        legend_height = unit(15, "mm"),
+        title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT)
+      ),
+
+      clustering_distance_rows = function(m) as.dist(1 - m[, rownames(m)]),
+      clustering_distance_columns = function(m) as.dist(1 - m[, colnames(m)]),
+      row_dend_gp = gpar(lwd = 0.5),
+
+      width = unit(heatmap_size, "mm"),
+      height = unit(heatmap_size, "mm"),
+      border = FALSE,
+
+      show_column_dend = FALSE,
+      show_column_names = FALSE,
+
+      show_row_names = TRUE,
+      row_labels = EXPERIMENT_NAMES[rownames(corr_mat)],
+      row_title = "cancer",
+      column_title = col_title
+    )
+  }
+
+  (p <- plot_heatmap(corr_mat_biased, color_limits,
+                     col_title = "original (biased)", show_legends = FALSE))
+  ggsave_publication("S6b_msk_correlation_biased",
+                     plot = p, height = 3, width = 6)
+
+  (p <- plot_heatmap(corr_mat_corrected, color_limits, col_title = "corrected"))
+  ggsave_publication("S6b_msk_correlation_corrected", plot = p, height = 3, width = 6)
+}
+
+plot_msk_heatmap()
 
 
 

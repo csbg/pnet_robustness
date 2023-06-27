@@ -88,7 +88,7 @@ done
 
 ```bash
 Rscript scripts/load_data_mskimpact.R "Non-Small Cell Lung Cancer"
-./run_pnet_docker.sh -e mskimpact_nsclc
+./run_pnet_docker.sh -e mskimpact_nsclc_original
 
 Rscript scripts/load_data_mskimpact.R "Non-Small Cell Lung Cancer"
 Rscript scripts/modify_data_deterministic.R
@@ -102,7 +102,7 @@ done
 
 
 Rscript scripts/load_data_mskimpact.R "Breast Cancer"
-./run_pnet_docker.sh -e mskimpact_bc
+./run_pnet_docker.sh -e mskimpact_bc_original
 
 Rscript scripts/load_data_mskimpact.R "Breast Cancer"
 Rscript scripts/modify_data_deterministic.R
@@ -116,7 +116,7 @@ done
 
 
 Rscript scripts/load_data_mskimpact.R "Colorectal Cancer"
-./run_pnet_docker.sh -e mskimpact_cc
+./run_pnet_docker.sh -e mskimpact_cc_original
 
 Rscript scripts/load_data_mskimpact.R "Colorectal Cancer"
 Rscript scripts/modify_data_deterministic.R
@@ -130,7 +130,7 @@ done
 
 
 Rscript scripts/load_data_mskimpact.R "Prostate Cancer"
-./run_pnet_docker.sh -e mskimpact_pc
+./run_pnet_docker.sh -e mskimpact_pc_original
 
 Rscript scripts/load_data_mskimpact.R "Prostate Cancer"
 Rscript scripts/modify_data_deterministic.R

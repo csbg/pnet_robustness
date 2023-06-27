@@ -922,13 +922,13 @@ plot_msk_heatmap <- function() {
     tibble(
       experiment = original,
       reactome_id = rownames(normalized_mat),
-      original = rowMeans(normalized_mat[, idx_original]),
+      biased = rowMeans(normalized_mat[, idx_original]),
       control = rowMeans(normalized_mat[, !idx_original]),
-      delta = original - control
+      corrected = biased - control
     )
   }
 
-  corr_mat_corrected <-
+  corr_data <-
     tribble(
       ~original, ~control,
       "mskimpact_nsclc_original", "mskimpact_nsclc_shuffled",
@@ -938,24 +938,22 @@ plot_msk_heatmap <- function() {
     ) %>%
     pmap(normalize_importances) %>%
     list_rbind() %>%
-    select(!c(original, control)) %>%
-    pivot_wider(names_from = experiment, values_from = delta) %>%
-    select(!reactome_id) %>%
-    cor(use = "pairwise.complete.obs")
+    select(!control) %>%
+    pivot_wider(
+      names_from = experiment,
+      values_from = c(biased, corrected),
+      names_glue = "{experiment}_{.value}"
+    ) %>%
+    select(!reactome_id)
 
   corr_mat_biased <-
-    node_importance %>%
-    filter(
-      experiment %in% c("mskimpact_nsclc_original", "mskimpact_bc_original",
-                        "mskimpact_cc_original", "mskimpact_pc_original"),
-    ) %>%
-    summarise(
-      .by = c(experiment, layer, reactome_id),
-      coef_combined = mean(coef_combined)
-    ) %>%
-    select(!layer) %>%
-    pivot_wider(names_from = experiment, values_from = coef_combined) %>%
-    select(!reactome_id) %>%
+    corr_data %>%
+    select(ends_with("biased")) %>%
+    cor(use = "pairwise.complete.obs")
+
+  corr_mat_corrected <-
+    corr_data %>%
+    select(ends_with("corrected")) %>%
     cor(use = "pairwise.complete.obs")
 
   color_limits <- range(corr_mat_biased, corr_mat_corrected)

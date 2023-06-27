@@ -10,10 +10,14 @@ EXPERIMENT_NAMES <- c(
   "pnet_original" = "original setup",
   "pnet_deterministic" = "deterministic inputs",
   "pnet_shuffled" = "shuffled labels",
-  "mskimpact_nsclc_original" = "lung",
-  "mskimpact_bc_original" = "breast",
-  "mskimpact_cc_original" = "colorectal",
-  "mskimpact_pc_original" = "prostate"
+  "mskimpact_nsclc_original_biased" = "lung",
+  "mskimpact_bc_original_biased" = "breast",
+  "mskimpact_cc_original_biased" = "colorectal",
+  "mskimpact_pc_original_biased" = "prostate",
+  "mskimpact_nsclc_original_corrected" = "lung",
+  "mskimpact_bc_original_corrected" = "breast",
+  "mskimpact_cc_original_corrected" = "colorectal",
+  "mskimpact_pc_original_corrected" = "prostate"
 )
 
 # for MSK-IMPACT from https://wesandersonpalettes.tumblr.com/

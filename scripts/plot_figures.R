@@ -13,6 +13,12 @@ source("scripts/styling.R")
 
 # Load data ---------------------------------------------------------------
 
+# for testing, since loading from original data files takes time
+# load("data/input_data_cache.RData")
+# save(ORIGINAL_SEED_PNET, reactome_names, node_importance,
+#      predictions, pnet_edges, pnet_graph, graph_stats,
+#      ORIGINAL_SEED_DTOX, node_importance_dtox, predictions_dtox,
+#      file = "data/input_data_cache.RData")
 
 ## P-NET ----
 
@@ -321,7 +327,7 @@ ggsave_publication("1d_changes", width = 8, height = 4)
 
 ## b ----
 
-plot_bias <- function(experiment, top_nodes = 5) {
+plot_bias <- function(experiment, x_title_suffix, top_nodes = 5) {
   node_importance <-
     node_importance %>%
     filter(experiment == {{experiment}})
@@ -355,7 +361,8 @@ plot_bias <- function(experiment, top_nodes = 5) {
       show.legend = FALSE
     ) +
     scale_x_discrete(paste("five most and least important nodes per layer",
-                           "ordered by median importance")) +
+                           "ordered by median importance",
+                           x_title_suffix)) +
     scale_y_continuous("node importance (z-score)") +
     scale_color_manual(values = EXPERIMENT_COLORS) +
     facet_wrap(vars(layer), scales = "free_x", nrow = 1) +
@@ -367,7 +374,7 @@ plot_bias <- function(experiment, top_nodes = 5) {
     )
 }
 
-plot_bias("pnet_deterministic")
+plot_bias("pnet_deterministic", "from the deterministic input setup")
 ggsave_publication("2b_scores", width = 14, height = 4)
 
 
@@ -417,7 +424,7 @@ plot_bias_comparison <- function(experiment, top_nodes = 5) {
       show.legend = FALSE
     ) +
     scale_x_discrete(paste("five most and least important nodes per layer",
-                           "ordered by median importance")) +
+                           "ordered by median importance across both setups")) +
     scale_y_continuous("node importance (z-score)") +
     scale_color_manual(values = EXPERIMENT_COLORS) +
     facet_wrap(vars(layer), scales = "free_x", nrow = 1) +
@@ -438,7 +445,7 @@ ggsave_publication("2d_comparison", width = 14, height = 4)
 
 ## b ----
 
-plot_bias("pnet_shuffled")
+plot_bias("pnet_shuffled", "from the shuffled labels setup")
 ggsave_publication("3b_scores", width = 14, height = 4)
 
 
@@ -884,7 +891,7 @@ ggsave_publication("S2b_correlations", width = 18, height = 6)
 
 plot_dtox_heatmap <- function(compound,
                               show_legends = TRUE,
-                              heatmap_size = 30) {
+                              heatmap_size = 31.2) {
   corr_mat <-
     corr_data_dtox %>%
     filter(compound == {{compound}}) %>%
@@ -892,6 +899,7 @@ plot_dtox_heatmap <- function(compound,
     pivot_wider(names_from = seed_2, values_from = correlation) %>%
     column_to_rownames("seed_1") %>%
     as.matrix()
+  diag(corr_mat) <- NA
 
   Heatmap(
     corr_mat,
@@ -925,17 +933,18 @@ plot_dtox_heatmap <- function(compound,
     show_row_names = FALSE,
     row_title = "seeds",
     row_title_side = "right",
-    column_title = compound
+    column_title = compound,
+    column_title_side = "bottom"
   )
 }
 
+(p <- plot_dtox_heatmap("CID_5281162", show_legends = FALSE))
+ggsave_publication("S2b_heatmap_5281162",
+                   plot = p, height = 4, width = 5, type = "png")
+
 (p <- plot_dtox_heatmap("CID_150311"))
 ggsave_publication("S2b_heatmap_150311",
-                   plot = p, height = 4, width = 6)
-
-(p <- plot_dtox_heatmap("CID_5281162"))
-ggsave_publication("S2b_heatmap_5281162",
-                   plot = p, height = 4, width = 6)
+                   plot = p, height = 4, width = 6.5, type = "png")
 
 
 
@@ -1119,6 +1128,7 @@ plot_msk_heatmap <- function() {
     message("Correlation range (", col_title, "): ",
             cor_range[1], " to ", cor_range[2])
 
+    diag(corr_mat) <- NA
     Heatmap(
       corr_mat,
       col = circlize::colorRamp2(
@@ -1150,13 +1160,14 @@ plot_msk_heatmap <- function() {
 
       show_row_names = TRUE,
       row_labels = EXPERIMENT_NAMES[rownames(corr_mat)],
-      row_title = "cancer",
+      row_title = "cancer type",
+      row_title_side = "right",
       column_title = col_title
     )
   }
 
   (p <- plot_heatmap(corr_mat_biased, color_limits,
-                     col_title = "original (biased)", show_legends = FALSE))
+                     col_title = "original", show_legends = FALSE))
   ggsave_publication("S6b_msk_correlation_biased",
                      plot = p, height = 3, width = 6)
 
@@ -1202,3 +1213,4 @@ corr_data_dtox %>%
   filter(seed_1 != seed_2) %>%
   pull(correlation) %>%
   range() %>%
+  round(2)

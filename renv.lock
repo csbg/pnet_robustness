@@ -197,6 +197,17 @@
       ],
       "Hash": "45f0398006e83a5b10b72a90663d8d8c"
     },
+    "Rcpp": {
+      "Package": "Rcpp",
+      "Version": "1.0.10",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "methods",
+        "utils"
+      ],
+      "Hash": "e749cae40fa9ef469b6050959517453c"
+    },
     "S4Vectors": {
       "Package": "S4Vectors",
       "Version": "0.38.1",
@@ -756,6 +767,22 @@
       ],
       "Hash": "3a147ee02e85a8941aad9909f1b43b7b"
     },
+    "ggrepel": {
+      "Package": "ggrepel",
+      "Version": "0.9.3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "Rcpp",
+        "ggplot2",
+        "grid",
+        "rlang",
+        "scales",
+        "withr"
+      ],
+      "Hash": "92edfac53774706b4d6099f3ee6f6306"
+    },
     "glue": {
       "Package": "glue",
       "Version": "1.6.2",
@@ -870,6 +897,23 @@
         "vctrs"
       ],
       "Hash": "8b331e659e67d757db0fcc28e689c501"
+    },
+    "hexbin": {
+      "Package": "hexbin",
+      "Version": "1.28.3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "grDevices",
+        "graphics",
+        "grid",
+        "lattice",
+        "methods",
+        "stats",
+        "utils"
+      ],
+      "Hash": "124e384c01d8746f1c12f9dc1b80a161"
     },
     "highr": {
       "Package": "highr",
@@ -1071,6 +1115,24 @@
       ],
       "Hash": "001cecbeac1cff9301bdc3775ee46a86"
     },
+    "limma": {
+      "Package": "limma",
+      "Version": "3.56.2",
+      "Source": "Bioconductor",
+      "git_url": "https://git.bioconductor.org/packages/limma",
+      "git_branch": "RELEASE_3_17",
+      "git_last_commit": "e19b8e7",
+      "git_last_commit_date": "2023-06-03",
+      "Requirements": [
+        "R",
+        "grDevices",
+        "graphics",
+        "methods",
+        "stats",
+        "utils"
+      ],
+      "Hash": "15b74284b9eb4641fa99a01e445a8256"
+    },
     "log4r": {
       "Package": "log4r",
       "Version": "0.4.3",
@@ -1201,6 +1263,22 @@
         "askpass"
       ],
       "Hash": "0f7cd2962e3044bb940cca4f4b5cecbe"
+    },
+    "patchwork": {
+      "Package": "patchwork",
+      "Version": "1.1.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "ggplot2",
+        "grDevices",
+        "graphics",
+        "grid",
+        "gtable",
+        "stats",
+        "utils"
+      ],
+      "Hash": "63b611e9d909a9ed057639d9c3b77152"
     },
     "pillar": {
       "Package": "pillar",

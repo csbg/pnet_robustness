@@ -481,7 +481,12 @@ plot_cor_heatmap <- function(layer = NULL,
 
   col_metadata <-
     tibble(exp_seed = colnames(corr_mat)) %>%
-    separate(exp_seed, into = c("experiment", "seed"), sep = "\\+")
+    separate(exp_seed, into = c("experiment", "seed"), sep = "\\+") %>%
+    mutate(experiment_long = EXPERIMENT_NAMES[experiment])
+
+  color_names <-
+    EXPERIMENT_COLORS[1:3] %>%
+    set_names(EXPERIMENT_NAMES[names(.)])
 
   Heatmap(
     corr_mat,
@@ -517,8 +522,8 @@ plot_cor_heatmap <- function(layer = NULL,
     show_row_names = FALSE,
 
     left_annotation = rowAnnotation(
-      experiment = col_metadata$experiment,
-      col = list(experiment = EXPERIMENT_COLORS),
+      experiment = col_metadata$experiment_long,
+      col = list(experiment = color_names),
       show_annotation_name = FALSE,
       show_legend = show_legends,
       annotation_legend_param = list(
@@ -1013,8 +1018,7 @@ plot_importance_vs_measure <- function() {
 }
 
 plot_importance_vs_measure()
-ggsave_publication("S4_importance_vs_measure",
-                   width = 28, height = 12, type = "png")
+ggsave_publication("S4_importance_vs_measure", width = 28, height = 12)
 
 
 
@@ -1029,8 +1033,7 @@ graph_stats %>%
   theme_pub() +
   theme(panel.grid = element_blank())
 
-ggsave_publication("S5_reachability_vs_betweenness",
-                   height = 4, width = 18, type = "png")
+ggsave_publication("S5_reachability_vs_betweenness", height = 4, width = 18)
 
 
 

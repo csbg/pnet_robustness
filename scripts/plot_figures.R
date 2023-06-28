@@ -13,7 +13,10 @@ source("scripts/styling.R")
 
 # Load data ---------------------------------------------------------------
 
-original_seed <- "234_20080808"
+
+## P-NET ----
+
+ORIGINAL_SEED_PNET <- "234_20080808"
 
 reactome_names <-
   read_tsv(
@@ -56,7 +59,7 @@ predictions <-
       read_csv(
         file,
         skip = 1,
-        col_names = c("sample_id", "predicted", "p_metastatic", "truth"),
+        col_names = c("sample_id", "predicted", "p_predicted", "truth"),
         col_types = "ccdc"
       )
     }
@@ -127,12 +130,37 @@ graph_stats <-
   mutate(layer = as.integer(layer) + 1L)
 
 
+## DTox ----
+
+ORIGINAL_SEED_DTOX <- "0"
+
+predictions_dtox <-
+  dir_ls(glob = "data/dtox/*/test_labels.csv", recurse = TRUE) %>%
+  map(read_csv) %>%
+  list_rbind(names_to = "file") %>%
+  separate_wider_regex(
+    file,
+    c("data/dtox/", seed = ".+", "/.+")
+  ) %>%
+  mutate(
+    experiment = "dtox",
+    truth =
+      if_else(truth > 0.9, "one", "zero") %>%
+      as_factor() %>%
+      fct_relevel("one", "zero")
+  ) %>%
+  rename(p_predicted = predicted) %>%
+  relocate(experiment)
+
+
 
 # Figure 1 ----------------------------------------------------------------
 
 ## b ----
 
-plot_roc <- function(experiment) {
+plot_roc <- function(predictions,
+                     experiment,
+                     original_seed = ORIGINAL_SEED_PNET) {
   pred <-
     predictions %>%
     filter(experiment == {{experiment}}) %>%
@@ -144,7 +172,7 @@ plot_roc <- function(experiment) {
       metrics =
         pred %>%
         group_split() %>%
-        map(roc_curve, truth, p_metastatic)
+        map(roc_curve, truth, p_predicted)
     ) %>%
     unnest(metrics)
 
@@ -162,7 +190,7 @@ plot_roc <- function(experiment) {
     theme(panel.grid = element_blank())
 }
 
-plot_roc("pnet_original")
+plot_roc(predictions, "pnet_original")
 ggsave_publication("1b_roc", width = 4, height = 4)
 
 
@@ -175,7 +203,7 @@ plot_robustness <- function(top_nodes = 10, experiment = "pnet_original") {
 
   top_nodes_per_layer <-
     node_importance %>%
-    filter(seed == original_seed) %>%
+    filter(seed == ORIGINAL_SEED_PNET) %>%
     group_by(layer) %>%
     slice_max(coef_combined, n = top_nodes, with_ties = FALSE) %>%
     arrange(layer, desc(coef_combined))
@@ -197,7 +225,7 @@ plot_robustness <- function(top_nodes = 10, experiment = "pnet_original") {
       show.legend = FALSE
     ) +
     geom_point(
-      data = node_importance %>% filter(seed == original_seed),
+      data = node_importance %>% filter(seed == ORIGINAL_SEED_PNET),
       color = ORIGINAL_SEED_COLOR,
       size = .75,
     ) +
@@ -227,14 +255,14 @@ plot_changes <- function(seed = "28_28", top_nodes = c(4, 43)) {
 
   top_nodes <-
     plot_data %>%
-    filter(seed == original_seed) %>%
+    filter(seed == ORIGINAL_SEED_PNET) %>%
     slice_max(coef_combined, n = top_nodes[2], with_ties = FALSE) %>%
     slice_min(coef_combined, n = top_nodes[2] - top_nodes[1] + 1, with_ties = FALSE) %>%
     arrange(desc(coef_combined))
 
   plot_data <-
     plot_data %>%
-    filter(seed %in% c(original_seed, {{seed}})) %>%
+    filter(seed %in% c(ORIGINAL_SEED_PNET, {{seed}})) %>%
     semi_join(top_nodes, by = "reactome_id") %>%
     mutate(reactome_id = factor(reactome_id,
                                 levels = top_nodes$reactome_id)) %>%
@@ -245,7 +273,7 @@ plot_changes <- function(seed = "28_28", top_nodes = c(4, 43)) {
       data = plot_data %>%
         mutate(
           seed = fct_recode(seed,
-                            original = original_seed,
+                            original = ORIGINAL_SEED_PNET,
                             replicate = {{seed}})
         ) %>%
         pivot_wider(names_from = seed, values_from = coef_combined),
@@ -256,7 +284,7 @@ plot_changes <- function(seed = "28_28", top_nodes = c(4, 43)) {
     geom_point(
       data =
         plot_data %>%
-        filter(seed == original_seed),
+        filter(seed == ORIGINAL_SEED_PNET),
       size = 1,
       color = ORIGINAL_SEED_COLOR,
       show.legend = FALSE
@@ -330,7 +358,7 @@ ggsave_publication("2b_scores", width = 14, height = 4)
 
 ## c ----
 
-plot_roc("pnet_deterministic")
+plot_roc(predictions, "pnet_deterministic")
 ggsave_publication("2c_roc", width = 4, height = 4)
 
 
@@ -401,7 +429,7 @@ ggsave_publication("3b_scores", width = 14, height = 4)
 
 ## c ----
 
-plot_roc("pnet_shuffled")
+plot_roc(predictions, "pnet_shuffled")
 ggsave_publication("3c_roc", width = 4, height = 4)
 
 
@@ -760,9 +788,9 @@ ggsave_publication("6_correction_approach", width = 18, height = 12)
 
 left_join(
   node_importance %>%
-    filter(experiment == "pnet_original", seed == original_seed),
+    filter(experiment == "pnet_original", seed == ORIGINAL_SEED_PNET),
   node_importance %>%
-    filter(experiment == "pnet_original", seed != original_seed) %>%
+    filter(experiment == "pnet_original", seed != ORIGINAL_SEED_PNET) %>%
     summarise(
       .by = c(layer, reactome_id),
       coef_combined_avg = mean(coef_combined)
@@ -782,6 +810,15 @@ left_join(
     panel.grid = element_blank()
   )
 ggsave_publication("S1_delta_node_importance_distribution", width = 5, height = 4)
+
+
+
+# Figure S2 ---------------------------------------------------------------
+
+## a ----
+
+plot_roc(predictions_dtox, "dtox", ORIGINAL_SEED_DTOX)
+ggsave_publication("S2a_roc", width = 4, height = 4)
 
 
 
@@ -890,14 +927,14 @@ ggsave_publication("S5_reachability_vs_betweenness",
 ## a ----
 
 wrap_plots(
-  plot_roc("mskimpact_nsclc_original"),
-  plot_roc("mskimpact_bc_original"),
-  plot_roc("mskimpact_cc_original"),
-  plot_roc("mskimpact_pc_original"),
-  plot_roc("mskimpact_nsclc_shuffled"),
-  plot_roc("mskimpact_bc_shuffled"),
-  plot_roc("mskimpact_cc_shuffled"),
-  plot_roc("mskimpact_pc_shuffled"),
+  plot_roc(predictions, "mskimpact_nsclc_original"),
+  plot_roc(predictions, "mskimpact_bc_original"),
+  plot_roc(predictions, "mskimpact_cc_original"),
+  plot_roc(predictions, "mskimpact_pc_original"),
+  plot_roc(predictions, "mskimpact_nsclc_shuffled"),
+  plot_roc(predictions, "mskimpact_bc_shuffled"),
+  plot_roc(predictions, "mskimpact_cc_shuffled"),
+  plot_roc(predictions, "mskimpact_pc_shuffled"),
   nrow = 2
 )
 ggsave_publication("S6a_mskimpact_roc", width = 18, height = 9)

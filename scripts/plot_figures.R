@@ -134,6 +134,21 @@ graph_stats <-
 
 ORIGINAL_SEED_DTOX <- "0"
 
+node_importance_dtox <-
+  dir_ls(glob = "data/dtox/*/module_relevance.tsv", recurse = TRUE) %>%
+  map(
+    \(file) {
+      df <- read_tsv(file)
+      colnames(df)[1] <- "compound"
+      df
+    }
+  ) %>%
+  list_rbind(names_to = "file") %>%
+  separate_wider_regex(
+    file,
+    c("data/dtox/", seed = ".+", "/.+"),
+  )
+
 predictions_dtox <-
   dir_ls(glob = "data/dtox/*/test_labels.csv", recurse = TRUE) %>%
   map(read_csv) %>%
@@ -821,6 +836,103 @@ plot_roc(predictions_dtox, "dtox", ORIGINAL_SEED_DTOX)
 ggsave_publication("S2a_roc", width = 4, height = 4)
 
 
+## b (boxblot) ----
+
+corr_data_dtox <-
+  map(
+    unique(node_importance_dtox$compound),
+    \(compound) {
+      node_importance_dtox %>%
+        filter(compound == {{compound}}) %>%
+        select(!compound) %>%
+        column_to_rownames("seed") %>%
+        as.matrix() %>%
+        t() %>%
+        cor() %>%
+        as_tibble(rownames = "seed_1") %>%
+        pivot_longer(
+          !seed_1,
+          names_to = "seed_2",
+          values_to = "correlation"
+        ) %>%
+        mutate(compound = {{compound}}, .before = 1)
+    }
+  ) %>%
+  list_rbind()
+
+corr_data_dtox %>%
+  filter(seed_2 > seed_1) %>%
+  mutate(compound = fct_reorder(compound, -correlation, median)) %>%
+  ggplot(aes(compound, correlation)) +
+  geom_boxplot(
+    outlier.size = 0.1,
+    outlier.alpha = 0.1,
+    linewidth = BASE_LINEWIDTH
+  ) +
+  ylab("correlation of replicate networks") +
+  theme_pub(TRUE) +
+  theme(panel.grid = element_blank())
+ggsave_publication("S2b_correlations", width = 18, height = 6)
+
+
+## b (heatmaps) ----
+
+plot_dtox_heatmap <- function(compound,
+                              show_legends = TRUE,
+                              heatmap_size = 30) {
+  corr_mat <-
+    corr_data_dtox %>%
+    filter(compound == {{compound}}) %>%
+    select(!compound) %>%
+    pivot_wider(names_from = seed_2, values_from = correlation) %>%
+    column_to_rownames("seed_1") %>%
+    as.matrix()
+
+  Heatmap(
+    corr_mat,
+    col = circlize::colorRamp2(
+      seq(-1, 1, length.out = 9),
+      color("roma", reverse = TRUE)(9),
+    ),
+
+    show_heatmap_legend = show_legends,
+    name = "correlation of\nnode importance\nscores",
+    heatmap_legend_param = list(
+      at = c(-1, 0, 1),
+      border = FALSE,
+      grid_width = unit(2, "mm"),
+      labels_gp = gpar(fontsize = BASE_TEXT_SIZE_PT),
+      legend_height = unit(15, "mm"),
+      title_gp = gpar(fontsize = BASE_TEXT_SIZE_PT)
+    ),
+
+    clustering_distance_rows = function(m) as.dist(1 - m[, rownames(m)]),
+    clustering_distance_columns = function(m) as.dist(1 - m[, colnames(m)]),
+    row_dend_gp = gpar(lwd = 0.5),
+
+    width = unit(heatmap_size, "mm"),
+    height = unit(heatmap_size, "mm"),
+    border = FALSE,
+
+    show_column_dend = FALSE,
+    show_column_names = FALSE,
+
+    show_row_names = FALSE,
+    row_title = "seeds",
+    row_title_side = "right",
+    column_title = compound
+  )
+}
+
+(p <- plot_dtox_heatmap("CID_150311"))
+ggsave_publication("S2b_heatmap_150311",
+                   plot = p, height = 4, width = 6)
+
+(p <- plot_dtox_heatmap("CID_5281162"))
+ggsave_publication("S2b_heatmap_5281162",
+                   plot = p, height = 4, width = 6)
+
+
 
 # Figure S3 ---------------------------------------------------------------
 
@@ -1079,3 +1191,11 @@ node_importance %>%
   group_by(from_exp, to_exp) %>%
   summarise(mean_corr = mean(corr) %>% round(2))
 
+
+
+## DTox correlation extrema ----
+
+corr_data_dtox %>%
+  filter(seed_1 != seed_2) %>%
+  pull(correlation) %>%
+  range() %>%

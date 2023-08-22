@@ -17,19 +17,55 @@
 
 ## Preparation
 
+### P-NET and DTox
+
 Download the provided Docker containers from the GitHub Container registry:
 
 ```bash
-docker pull ghcr.io/csbg/pnet-container
-docker pull ghcr.io/csbg/dtox-container
+docker pull ghcr.io/csbg/pnet-container:1.0.0
+docker pull ghcr.io/csbg/dtox-container:1.0.0
 ```
+
+Alternatively, pull these containers with Apptainer/Singularity:
+
+```bash
+singularity pull docker://ghcr.io/csbg/pnet-container:1.0.0
+singularity pull docker://ghcr.io/csbg/dtox-container:1.0.0
+```
+
+When using the latter container format, replace all calls to `run_[pnet/dtox]_docker.sh` with `run_[pnet/dtox]_singularity.sh`.
+
+
+### R
+
+In order to run the R scripts, you will need one of the following:
+
+- an installation of R 4.3.1; restore required packages from `renv.lock` via
+  ```bash
+  Rscript -e "renv::restore()"`
+  ```
+
+- the Docker container available from the GitHub Container registry:
+  ```bash
+  docker pull ghcr.io/csbg/r_pnet_robustness:1.0.0
+  ```
+  Replace calls to `Rscript` below by `scripts/run_rscript_docker.sh`.
+
+- the Apptainer/Singularity container:
+  ```bash
+  singularity pull docker://ghcr.io/csbg/r_pnet_robustness:1.0.0
+  ```
+  Replace calls to `Rscript` below by `scripts/run_rscript_singularity.sh`.
+
+
+
+### Datasets
 
 Download the [MSK-IMPACT 2017](https://www.nature.com/articles/nm.4333) dataset:
 
 ```bash
 wget https://cbioportal-datahub.s3.amazonaws.com/msk_impact_2017.tar.gz
-mkdir -p pnet_data/msk_impact_2017
-tar xzf msk_impact_2017.tar.gz -C pnet_data/msk_impact_2017
+tar xzf msk_impact_2017.tar.gz -C pnet_data
 ```
 
 
@@ -143,7 +179,13 @@ Results from each run are saved in a subfolder indicating the random seed used (
 
 ## Analyze results
 
-`plot_figures.R` generates all figures shown in the publication, using files in `data` (described below). `styling.R` is required by this script.
+`plot_figures.R` generates all figures shown in the publication, using files in `data` (described below):
+
+```bash
+Rscript scripts/plot_figures.R
+```
+
+`styling.R` is required by this script.
 
 
 ### P-NET
@@ -217,6 +259,19 @@ Build and deploy this image via
 ```bash
 docker build --tag ghcr.io/csbg/dtox-container:1.0.0 .
 docker push ghcr.io/csbg/dtox-container:1.0.0
+```
+
+
+### R
+
+The folder `docker/r` contains the `Dockerfile` needed for building a Docker image with R and required packages installed.
+
+Build and deploy this image via
+
+```bash
+cp ../../renv.lock .
+docker build --tag ghcr.io/csbg/r_pnet_robustness:1.0.0 .
+docker push ghcr.io/csbg/r_pnet_robustness:1.0.0
 ```
 
 

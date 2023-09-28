@@ -1,5 +1,11 @@
 # Reliable interpretability of biology-inspired deep neural networks
 
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8386694.svg)](https://doi.org/10.5281/zenodo.8386694)
+
+This code supplements the [publication](https://doi.org/10.1038/s41540-023-00310-8) by Esser-Skala and Fortelny (2023).
+
+
 ## Folders
 
 (Not all of these folders are included in the git repository.)

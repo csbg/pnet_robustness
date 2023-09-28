@@ -1,0 +1,35 @@
+cff-version: 1.2.0
+message: If you use this software, please cite both the article from preferred-citation and the software itself.
+title: Code for the publication "Reliable interpretability of biology-inspired deep neural networks"
+authors:
+- family-names: Esser-Skala
+  given-names: Wolfgang
+  orcid: https://orcid.org/0000-0002-7350-4045
+- family-names: Fortelny
+  given-names: Nikolaus
+  orcid: https://orcid.org/0000-0003-4025-9968
+version: 1.2.0
+type: software
+license: MIT
+doi: 10.5281/zenodo.8386694
+repository-code: https://github.com/csbg/pnet_robustness
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Esser-Skala
+      given-names: Wolfgang
+      affiliation: Department of Biosciences and Medical Biology, University of Salzburg, Salzburg, Austria
+      orcid: https://orcid.org/0000-0002-7350-4045
+    - family-names: Fortelny
+      given-names: Nikolaus
+      affiliation: Department of Biosciences and Medical Biology, University of Salzburg, Salzburg, Austria
+      orcid: https://orcid.org/0000-0003-4025-9968
+      email: nikolaus.fortelny@plus.ac.at
+  title: Reliable interpretability of biology-inspired deep neural networks
+  journal: npj Systems Biology and Applications
+  volume: XXX
+  pages: XXX 
+  year: XXX
+  doi: 10.1038/s41540-023-00310-8
+  license: CC-BY-4.0
+  pmcid: XXX

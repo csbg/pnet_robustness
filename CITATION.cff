@@ -27,9 +27,8 @@ preferred-citation:
       email: nikolaus.fortelny@plus.ac.at
   title: Reliable interpretability of biology-inspired deep neural networks
   journal: npj Systems Biology and Applications
-  volume: XXX
-  pages: XXX 
-  year: XXX
+  volume: 9
+  pages: 50
+  year: 2023
   doi: 10.1038/s41540-023-00310-8
   license: CC-BY-4.0
-  pmcid: XXX
